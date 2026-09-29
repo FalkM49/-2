@@ -1,0 +1,2608 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Двойная жизнь</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Neucha&family=Rubik+Mono+One&family=Rubik:wght@400;600&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #0d0b16;
+    --panel: #19142c;
+    --line: #30285a;
+    --text: #efe9ff;
+    --muted: #a69ed2;
+    --red: #e02a3c;
+    --blue: #2350b5;
+    --gold: #ffd84a;
+    --rose: #ff5a7a;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--ink); color: var(--text); font: 15px/1.5 Rubik, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 28px; display: flex; flex-direction: column; gap: 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  h1 { font-family: "Rubik Mono One", Rubik, system-ui, sans-serif; font-weight: 400; font-size: clamp(16px, 3vw, 25px); line-height: 1.15; margin: 0; text-wrap: balance; }
+  h1 .r { color: var(--rose); }
+  .tools { display: flex; gap: 8px; }
+  .tool { font: 600 13px/1 Rubik, system-ui, sans-serif; color: var(--text); background: var(--panel); border: 2px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+  .tool:hover { border-color: var(--muted); }
+  .tool:focus-visible, .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .stage { position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; background: #000; border: 3px solid #000; box-shadow: 6px 6px 0 var(--rose); touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .pad { display: none; justify-content: space-between; align-items: center; gap: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .dpad { display: flex; gap: 10px; }
+  .acts { display: grid; grid-template-columns: repeat(2, auto); gap: 8px; }
+  .btn { font: 600 12px/1 Rubik, system-ui, sans-serif; letter-spacing: .04em; color: #fff; background: var(--panel); border: 2px solid var(--line); border-radius: 14px; min-width: 64px; height: 56px; padding-inline: 10px; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  .btn.arrow { font-size: 22px; min-width: 60px; }
+  .btn.jump { background: var(--blue); border-color: #3c6bd6; }
+  .btn.punch { background: var(--red); border-color: #ff5a68; }
+  .btn.web { background: #e8e4f6; color: #16122e; border-color: #fff; }
+  .btn.swing { background: #3b2f78; border-color: #5a4ab0; }
+  .btn.on { transform: translateY(2px); filter: brightness(1.25); }
+  .keys { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; }
+  .keys span { white-space: nowrap; }
+  kbd { font: 600 12px/1 Rubik, system-ui, sans-serif; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 5px; padding: 3px 6px; }
+  .note { color: var(--muted); font-size: 13px; margin: 0; max-width: 70ch; }
+  @media (pointer: coarse) { .pad { display: flex; } .keys { display: none; } }
+  @media (max-width: 420px) { .btn { min-width: 56px; height: 50px; font-size: 11px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Человек-паук 3 · <span class="r">Двойная жизнь</span></h1>
+    <div class="tools">
+      <button class="tool" id="muteBtn" type="button">Звук: вкл</button>
+      <button class="tool" id="pauseBtn" type="button">Пауза</button>
+    </div>
+  </header>
+  <div class="stage">
+    <canvas id="game" width="960" height="540" aria-label="Игровое поле"></canvas>
+  </div>
+  <div class="pad">
+    <div class="dpad">
+      <button class="btn arrow" type="button" data-act="left" aria-label="Влево">◀</button>
+      <button class="btn arrow" type="button" data-act="right" aria-label="Вправо">▶</button>
+    </div>
+    <div class="acts">
+      <button class="btn swing" type="button" data-act="swing">ЛИАНА</button>
+      <button class="btn jump" type="button" data-act="jump">ПРЫЖОК</button>
+      <button class="btn web" type="button" data-act="web">ПАУТИНА</button>
+      <button class="btn punch" type="button" data-act="punch">УДАР</button>
+    </div>
+  </div>
+  <div class="keys">
+    <span><kbd>←</kbd> <kbd>→</kbd> ходьба / бег</span>
+    <span><kbd>↑</kbd> / <kbd>Пробел</kbd> прыжок</span>
+    <span><kbd>J</kbd> удар · поговорить</span>
+    <span><kbd>K</kbd> паутина</span>
+    <span><kbd>L</kbd> / <kbd>Shift</kbd> качнуться</span>
+    <span><kbd>↑</kbd> <kbd>↓</kbd> <kbd>1</kbd>–<kbd>3</kbd> выбор ответа</span>
+    <span><kbd>Enter</kbd> дальше</span>
+    <span><kbd>P</kbd> пауза</span>
+  </div>
+  <p class="note">Без маски Питер ходит по городу и разговаривает с людьми: подойди к персонажу и нажми «Удар» или Enter. Ответы Фелиции влияют на шкалу ♥ и на финал. Прогресс сохраняется в начале каждой главы.</p>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// ============================================================ setup
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+const W = 960, H = 540;
+let DPR = 1;
+function fit() { DPR = Math.min(window.devicePixelRatio || 1, 2); cv.width = W * DPR; cv.height = H * DPR; }
+fit();
+addEventListener('resize', fit);
+
+const F_DISP = '"Rubik Mono One", Rubik, system-ui, sans-serif';
+const F_TALK = 'Neucha, "Comic Sans MS", Rubik, cursive';
+const F_UI = 'Rubik, system-ui, sans-serif';
+const RED = '#d7263d', BLUE = '#2350b5', DARKBLUE = '#173a8a', ROSE = '#ff5a7a', GOLD = '#ffd84a';
+const SPIDEY_PAL = { r: RED, b: BLUE, db: DARKBLUE };
+
+function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
+function hash(a, b) {
+  let n = Math.imul(a, 374761393) + Math.imul(b, 668265263);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+const COARSE = matchMedia('(pointer: coarse)').matches;
+
+// ============================================================ save
+function loadSave() { try { return JSON.parse(localStorage.getItem('spidey3-save') || 'null'); } catch (e) { return null; } }
+function writeSave() { try { localStorage.setItem('spidey3-save', JSON.stringify({ ch: chapter, love })); } catch (e) {} }
+function clearSave() { try { localStorage.removeItem('spidey3-save'); } catch (e) {} }
+
+// ============================================================ audio
+let AC = null, muted = false;
+function ensureAudio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume().catch(() => {});
+}
+function tone(f, d, type = 'square', v = .08, slide = 0) {
+  if (!AC || muted) return;
+  const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d);
+}
+function noise(d, v = .15) {
+  if (!AC || muted) return;
+  const b = AC.createBuffer(1, Math.max(1, AC.sampleRate * d | 0), AC.sampleRate), a = b.getChannelData(0);
+  for (let i = 0; i < a.length; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / a.length);
+  const s = AC.createBufferSource(), g = AC.createGain();
+  s.buffer = b; g.gain.value = v; s.connect(g).connect(AC.destination); s.start();
+}
+const later = (ms, fn) => setTimeout(fn, ms);
+const SFX = {
+  jump: () => tone(380, .12, 'square', .04, 300),
+  punch: () => noise(.06, .08),
+  web: () => tone(1100, .14, 'sawtooth', .025, -800),
+  hit: () => { noise(.12, .2); tone(130, .14, 'square', .07, -60); },
+  clank: () => { tone(1500, .12, 'square', .05, -300); tone(900, .18, 'triangle', .05); },
+  hurt: () => tone(320, .3, 'sawtooth', .06, -230),
+  boom: () => { noise(.5, .28); tone(90, .45, 'sine', .22, -50); },
+  shot: () => noise(.05, .12),
+  pick: () => { tone(660, .08, 'square', .05); later(80, () => tone(990, .12, 'square', .05)); },
+  meow: () => tone(620, .4, 'triangle', .08, 480),
+  open: () => [392, 523, 659].forEach((f, i) => later(i * 90, () => tone(f, .16, 'triangle', .06))),
+  blip: () => tone(1300, .02, 'square', .012),
+  sel: () => tone(900, .05, 'square', .03),
+  love: () => [784, 988].forEach((f, i) => later(i * 110, () => tone(f, .18, 'triangle', .05))),
+  heart: () => [659, 784, 988, 1318].forEach((f, i) => later(i * 180, () => tone(f, .35, 'triangle', .05))),
+  slam: () => { noise(.35, .3); tone(60, .4, 'sine', .25, -20); },
+  boing: () => tone(200, .3, 'sine', .08, 500),
+  ring: () => tone(1320, .12, 'triangle', .05, 200),
+  good: () => tone(880, .12, 'triangle', .06, 200),
+  bad: () => tone(160, .25, 'sawtooth', .05, -60),
+  phone: () => [0, 1].forEach(i => later(i * 180, () => tone(1400, .08, 'square', .03))),
+  alarm: () => [0, 1, 2].forEach(i => later(i * 260, () => tone(700, .2, 'sawtooth', .05, 300))),
+};
+
+// ============================================================ input
+const keys = {}, pressed = {};
+let tap = null;
+const KEYMAP = {
+  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', ArrowDown: 'down', KeyS: 'down',
+  KeyJ: 'punch', KeyX: 'punch', KeyE: 'punch', KeyK: 'web', KeyC: 'web',
+  KeyL: 'swing', ShiftLeft: 'swing', ShiftRight: 'swing', KeyV: 'swing',
+  Enter: 'ok', NumpadEnter: 'ok', KeyP: 'pause', Escape: 'pause', KeyM: 'mute',
+  Digit1: 'n1', Digit2: 'n2', Digit3: 'n3', Numpad1: 'n1', Numpad2: 'n2', Numpad3: 'n3',
+};
+addEventListener('keydown', e => {
+  const a = KEYMAP[e.code]; if (!a) return;
+  e.preventDefault(); ensureAudio();
+  if (!keys[a]) pressed[a] = true;
+  keys[a] = true;
+});
+addEventListener('keyup', e => { const a = KEYMAP[e.code]; if (a) keys[a] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.querySelectorAll('[data-act]').forEach(b => {
+  const a = b.dataset.act;
+  const down = e => {
+    e.preventDefault(); ensureAudio();
+    if (!keys[a]) pressed[a] = true;
+    keys[a] = true; b.classList.add('on');
+    try { b.setPointerCapture(e.pointerId); } catch (_) {}
+  };
+  const up = () => { keys[a] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerdown', down);
+  b.addEventListener('pointerup', up);
+  b.addEventListener('pointercancel', up);
+  b.addEventListener('lostpointercapture', up);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+cv.addEventListener('pointerdown', e => {
+  ensureAudio();
+  const r = cv.getBoundingClientRect();
+  tap = { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+  pressed.ok = true;
+});
+const muteBtn = document.getElementById('muteBtn');
+function syncMute() { muteBtn.textContent = muted ? 'Звук: выкл' : 'Звук: вкл'; }
+muteBtn.addEventListener('click', () => { ensureAudio(); muted = !muted; syncMute(); });
+document.getElementById('pauseBtn').addEventListener('click', () => { pressed.pause = true; });
+
+// ============================================================ cast
+const PEOPLE = {
+  peter: { skin: '#efc6a2', hair: 'messy', hairC: '#5a3a22', shirt: '#5b7fb8', coat: '#7a6448', pants: '#3a4a6a', build: 'slim' },
+  peterTie: { skin: '#efc6a2', hair: 'messy', hairC: '#5a3a22', shirt: '#f0f0f0', coat: '#2e3448', tie: '#8a2a3a', pants: '#2e3448', build: 'slim' },
+  may: { skin: '#f0cdb4', hair: 'bun', hairC: '#dcdcdc', glasses: true, dress: '#8a5a7a', coat: '#c49ab0', build: 'slim' },
+  jjj: { skin: '#e8b894', hair: 'flattop', hairC: '#9a9a9a', mustache: '#6a6a6a', cigar: true, shirt: '#ecece4', coat: '#55586a', tie: '#8a2a2a', pants: '#55586a', build: 'normal' },
+  robbie: { skin: '#6b4430', hair: 'short', hairC: '#c8c8c8', glasses: true, shirt: '#f0f0f0', coat: '#4a4a3a', tie: '#2a4a8a', pants: '#4a4a3a', build: 'normal' },
+  betty: { skin: '#f2d0b8', hair: 'bob', hairC: '#4a2a18', dress: '#6a8ac0', lips: true, build: 'slim' },
+  otto: { skin: '#e8b894', hair: 'bowl', hairC: '#3a2a1a', goggles: true, shirt: '#6a6a50', coat: '#eeeeea', coatLong: true, pants: '#4a4a3a', build: 'heavy', harness: true },
+  rosie: { skin: '#f2d0b8', hair: 'long', hairC: '#a0522d', dress: '#4f7a5a', lips: true, build: 'slim' },
+  felicia: { skin: '#f0d3c4', hair: 'longwhite', hairC: '#f5f2ec', dress: '#121216', coat: '#2a2a30', lips: true, earring: true, build: 'slim' },
+  kafka: { skin: '#f2d0b8', hair: 'bob', hairC: '#2a1a10', glasses: true, shirt: '#5a6a8a', coat: '#eeeeea', coatLong: true, pants: '#3a3a4a', build: 'slim' },
+  guard: { skin: '#c9956a', hair: 'cap', hairC: '#1e2638', shirt: '#3a4a6a', pants: '#222a3a', build: 'normal' },
+  norman: { skin: '#eac2a2', hair: 'spiky', hairC: '#b5452a', shirt: '#e0782a', pants: '#e0782a', build: 'normal' },
+  beck: { skin: '#e8c0a0', hair: 'slick', hairC: '#5a3a22', beard: '#5a3a22', shirt: '#e0782a', pants: '#e0782a', build: 'slim' },
+  menken: { skin: '#f2d0b8', hair: 'slick', hairC: '#1a1a1a', glasses: true, shirt: '#f4f4f4', coat: '#1f2024', tie: '#2a8a4a', pants: '#1f2024', build: 'slim' },
+  barista: { skin: '#d9a27a', hair: 'short', hairC: '#1a1a1a', shirt: '#e8e0d0', apron: '#4a2e1e', pants: '#2a2a2a', build: 'normal' },
+  musician: { skin: '#8a5a3a', hair: 'hat', hairC: '#1a1a1a', shirt: '#8a2a3a', coat: '#2a2a3a', pants: '#2a2a3a', build: 'normal' },
+  merc: { skin: '#c9956a', hair: 'mask', hairC: '#111', shirt: '#23262e', pants: '#1a1c22', build: 'normal' },
+  thug: { skin: '#d9a27a', hair: 'beanie', hairC: '#b3263a', shirt: '#6b2f4f', pants: '#2c2c3a', build: 'normal' },
+};
+const WHO = {
+  peter: { n: 'ПИТЕР ПАРКЕР', bg: '#5b7fb8' },
+  spidey: { n: 'ЧЕЛОВЕК-ПАУК', bg: '#c81f33' },
+  cat: { n: 'ЧЁРНАЯ КОШКА', bg: '#15131c', accent: ROSE },
+  felicia: { n: 'ФЕЛИЦИЯ ХАРДИ', bg: '#2a2230', accent: ROSE },
+  sms: { n: 'СООБЩЕНИЕ · «КОШКА»', bg: '#2a2230', accent: ROSE, face: 'felicia' },
+  may: { n: 'ТЁТЯ МЭЙ', bg: '#c49ab0' },
+  jjj: { n: 'ДЖ. ДЖОНА ДЖЕЙМСОН', bg: '#8a2a2a' },
+  robbie: { n: 'РОББИ РОБЕРТСОН', bg: '#4a4a3a' },
+  betty: { n: 'БЕТТИ БРАНТ', bg: '#6a8ac0' },
+  otto: { n: 'ДОКТОР ОТТО ОКТАВИУС', bg: '#6a6a40', accent: '#c9b24a' },
+  rosie: { n: 'РОЗИ ОКТАВИУС', bg: '#4f7a5a' },
+  kafka: { n: 'ДОКТОР ЭШЛИ КАФКА', bg: '#5a6a8a' },
+  guard: { n: 'ОХРАННИК', bg: '#3a4a6a' },
+  norman: { n: 'НОРМАН ОСБОРН', bg: '#5a2a18', accent: '#86d83f' },
+  beck: { n: 'КВЕНТИН БЕК', bg: '#3b1f5e', accent: '#5ff2a8' },
+  menken: { n: 'ДОНАЛЬД МЕНКЕН', bg: '#1f2024' },
+  merc: { n: 'НАЁМНИК', bg: '#23262e' },
+  thug: { n: 'БАНДИТ', bg: '#6b2f4f' },
+  kang: { n: 'КЕНГУРУ', bg: '#8a5a2a' },
+  arms: { n: '???', bg: '#16160c', accent: '#e8d24a' },
+  voice: { n: 'НЕЗНАКОМЕЦ ПО ТЕЛЕФОНУ', bg: '#111' },
+  barista: { n: 'БАРИСТА', bg: '#4a2e1e' },
+  musician: { n: 'УЛИЧНЫЙ МУЗЫКАНТ', bg: '#8a2a3a' },
+  narr: { n: '' },
+};
+
+// ============================================================ dialog helpers
+const T = (s, t) => ({ s, t });
+const C = (s, ...opts) => ({ s, choice: opts });
+const O = (t, next = [], love = 0, act = false) => ({ t, next, love, act });
+const A = (t, next = [], love = 0) => O(t, next, love, true);
+const FN = fn => ({ fn });
+const IF = (c, a, b = []) => ({ cond: c, then: a, else: b });
+
+// ============================================================ global state
+let state = 'title';
+let mode = null;            // civil | fight | race | kboss
+let chapter = 0, love = 0, raceWon = false, calibHits = 0, calibHits2 = 0;
+let P = null, CAT = null, KG = null;
+let enemies = [], webs = [], bullets = [], parts = [], pops = [], pickups = [], solids = [], waves = [];
+let scn = null, lvl = null, race = null, calib = null;
+let camX = 0, camMin = 0, camMax = 0, shake = 0, frame = 0;
+let hint = null, dialog = null, card = null, fadeA = 0, fadeCb = null, overT = 0, credits = null;
+let stats = { kos: 0, time: 0, hits: 0 };
+let menuSave = loadSave();
+
+function newPlayer(x, y) {
+  return { x, y, w: 24, h: 54, vx: 0, vy: 0, face: 1, onGround: false, coyote: 0, hp: 6, max: 6, inv: 0,
+    punchT: 0, punchCd: 0, punchId: 0, webCd: 0, shootT: 0, hurtT: 0, swing: null, swingWant: 0,
+    flung: false, anim: 0, lastSafe: { x, y }, skin: 'spidey' };
+}
+function showHint(text, t = 420) { hint = { text, t }; }
+function fadeTo(cb) { state = 'fade'; fadeCb = cb; }
+function pop(x, y, text, color = GOLD, size = 26) { pops.push({ x, y, text, color, size, life: 50 }); }
+function burst(x, y, color, n = 10, sp = 4, grav = .15) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = sp * (.4 + Math.random() * .8);
+    parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1, life: 24 + Math.random() * 16, max: 40, color, size: 2 + Math.random() * 3, grav });
+  }
+}
+function addLove(n) {
+  if (!n) return;
+  love += n; SFX.love();
+  pops.push({ x: W / 2, y: 200, text: '♥ +' + n, color: ROSE, size: 30, life: 60, screen: true });
+}
+
+// ============================================================ dialog engine
+function say(lines, done) { dialog = { lines: lines.slice(), i: 0, ch: 0, done, sel: 0 }; state = 'dialog'; procLine(); }
+function procLine() {
+  while (dialog && dialog.i < dialog.lines.length) {
+    const ln = dialog.lines[dialog.i];
+    if (ln.fn) { dialog.i++; if (ln.fn() === 'stop') return; continue; }
+    if (ln.cond) { dialog.lines.splice(dialog.i, 1, ...(ln.cond() ? ln.then : ln.else)); continue; }
+    if (ln.choice) dialog.sel = 0;
+    return;
+  }
+  if (dialog) {
+    const d = dialog; dialog = null;
+    if (state === 'dialog') state = 'play';
+    d.done && d.done();
+  }
+}
+function resumeDialog() { state = 'dialog'; procLine(); }
+function choiceRects() {
+  const ln = dialog.lines[dialog.i], n = ln.choice.length;
+  const x = 160, w = W - 220, h = 30, y0 = H - 136;
+  return ln.choice.map((o, i) => ({ x, y: y0 + i * (h + 4), w, h }));
+}
+function updateDialog() {
+  const d = dialog, ln = d.lines[d.i];
+  if (ln.choice) {
+    const n = ln.choice.length;
+    if (pressed.jump) { d.sel = (d.sel + n - 1) % n; SFX.sel(); }
+    if (pressed.down) { d.sel = (d.sel + 1) % n; SFX.sel(); }
+    let chosen = -1;
+    ['n1', 'n2', 'n3'].forEach((k, i) => { if (pressed[k] && i < n) chosen = i; });
+    if (tap) {
+      choiceRects().forEach((r, i) => { if (tap.x >= r.x && tap.x <= r.x + r.w && tap.y >= r.y && tap.y <= r.y + r.h) chosen = i; });
+      if (chosen < 0) pressed.ok = false;
+    }
+    if (chosen < 0 && (pressed.ok || pressed.punch)) chosen = d.sel;
+    if (chosen >= 0) {
+      const o = ln.choice[chosen];
+      const echo = o.act ? [] : [T(ln.s, o.t)];
+      d.lines.splice(d.i, 1, ...echo, ...o.next);
+      d.ch = 0;
+      addLove(o.love);
+      procLine();
+    }
+    return;
+  }
+  if (d.ch < ln.t.length) { d.ch += 1.35; if (frame % 3 === 0) SFX.blip(); }
+  if (pressed.ok || pressed.jump || pressed.punch) {
+    if (d.ch < ln.t.length) d.ch = ln.t.length;
+    else { d.i++; d.ch = 0; procLine(); }
+  }
+}
+
+// ============================================================ story: chapters
+const CHAPTERS = [
+  { num: 'ПРОЛОГ', title: 'ВОСКРЕСНОЕ УТРО', sub: 'Квинс, Форест-Хиллс' },
+  { num: 'ГЛАВА 1', title: 'ГАЗЕТА И ГЕНИЙ', sub: '«Дейли Бьюгл» · Университет Эмпайр-Стейт' },
+  { num: 'ГЛАВА 2', title: 'НОЧНОЙ ПАТРУЛЬ', sub: 'Адская кухня · крыша на 42-й' },
+  { num: 'ГЛАВА 3', title: 'БЕЗ МАСКИ', sub: 'Гринвич-Виллидж · Вашингтон-сквер · Квинс' },
+  { num: 'ГЛАВА 4', title: 'РЕЙВЕНКРОФТ', sub: 'Остров в Ист-Ривер' },
+  { num: 'ГЛАВА 5', title: 'ДЕМОНСТРАЦИЯ', sub: 'Университет Эмпайр-Стейт' },
+];
+function startChapter(n) {
+  chapter = n; writeSave(); menuSave = { ch: n, love };
+  const c = CHAPTERS[n];
+  card = { num: c.num, title: c.title, sub: c.sub, t: 0, go: () => { state = 'play'; CH_RUN[n](); } };
+  state = 'card';
+}
+function endChapter() { fadeTo(() => startChapter(chapter + 1)); }
+function goCivil(id) { fadeTo(() => startCivil(id)); }
+
+const CH_RUN = [
+  () => startCivil('home_am'),
+  () => startCivil('bugle'),
+  () => startFight('patrol'),
+  () => startCivil('cafe'),
+  () => startCivil('home_am2'),
+  () => startCivil('lab2'),
+];
+
+// ============================================================ story: scripts
+const S = {};
+S.home_am_intro = [
+  T('narr', 'Квинс, Форест-Хиллс. Воскресенье, 9:14 утра. Прошёл месяц после шоу Мистерио.'),
+  T('narr', 'Человек-паук спас город дважды. Питер Паркер за это время проспал будильник раз двадцать.'),
+  T('peter', 'Ммм... пахнет блинчиками. Тётя Мэй печёт. Значит, жизнь всё ещё прекрасна.'),
+];
+S.may = [
+  T('may', 'Доброе утро, соня! Блинчики на столе. А счёт за электричество — рядом с ними.'),
+  T('peter', 'Прекрасное сочетание. Сладкое и горькое.'),
+  T('may', 'Питер, ты опять вернулся под утро. Я слышала, как скрипело окно.'),
+  C('peter',
+    O('Я гулял. Думал о жизни.', [T('may', 'О жизни или о девушке? У тебя очень глупая улыбка, милый.')]),
+    O('Снимал ночной город для «Бьюгла».', [T('may', 'Этот мистер Джеймсон плохо на тебя влияет. Хоть бы платил нормально.')]),
+    O('Окно само открылось. Сквозняк.', [T('may', 'Сквозняк, который пахнет дорогими французскими духами? Ну-ну.')]),
+  ),
+  T('may', 'Кстати, звонил доктор Октавиус. Напомнил, что ждёт тебя сегодня в лаборатории.'),
+  T('may', 'Такой приятный человек. А его жена Рози передала мне рецепт штруделя.'),
+  T('peter', 'Доктор Октавиус — гений. Он собирается зажечь маленькое солнце прямо в университете.'),
+  T('may', 'Только не сожгите университет, ладно? И поешь нормально.'),
+];
+S.ben = [
+  T('narr', 'Фотография на стене. Дядя Бен улыбается, держа удочку. Рыбы на фото нет.'),
+  T('peter', '«С большой силой приходит большая ответственность». Я помню, дядя Бен. Каждый день помню.'),
+  T('narr', 'Иногда Питеру кажется, что дядя всё ещё сидит в своём старом кресле и читает газету вверх ногами.'),
+];
+S.phone = [
+  FN(() => SFX.phone()),
+  T('narr', 'Новое сообщение. Номер не подписан, вместо имени — силуэт чёрной кошки.'),
+  T('sms', 'Доброе утро, паучок. Мне снилась одна крыша. И ты на ней. Угадай, что было дальше.'),
+  C('peter',
+    O('Надеюсь, дальше были блинчики.', [T('sms', 'Дальше было кое-что послаще блинчиков. Сегодня ночью. Ты знаешь где.')]),
+    O('Расскажешь при встрече?', [T('sms', 'Лучше покажу. Ночью, крыша на 42-й. Не опаздывай.')], 1),
+    O('Фелиция, я пытаюсь позавтракать.', [T('sms', 'Какой строгий. Мне нравится. Ночью, крыша на 42-й.')]),
+  ),
+  T('peter', 'Как она вообще узнала мой номер? ...А, ну да. Это же Чёрная Кошка.'),
+];
+S.drawer = [T('peter', 'Костюм на месте. Под свитерами, как всегда. Тётя Мэй ни разу сюда не заглядывала. Надеюсь.')];
+S.window1 = [T('peter', 'Окно, через которое я сбегаю каждую ночь. Петли надо бы смазать. Тётя Мэй всё слышит.')];
+
+S.bugle_intro = [
+  T('narr', 'Манхэттен. Редакция «Дейли Бьюгл». Здесь пахнет кофе, типографской краской и криком.'),
+  T('jjj', 'ПАРКЕР!!! Кто-нибудь видел Паркера?!'),
+  T('peter', 'Доброе утро, «Бьюгл». Я тоже рад вас слышать.'),
+];
+S.betty = [
+  T('betty', 'Привет, Питер. Осторожно, шеф сегодня в ударе. Уволил уже двоих. Одного — дважды.'),
+  T('peter', 'Как можно уволить человека дважды?'),
+  T('betty', 'Он вернулся за курткой.'),
+  T('betty', 'Слушай, ты сегодня какой-то... сияющий. Влюбился?'),
+  C('peter',
+    O('Возможно.', [T('betty', 'Надеюсь, она хорошая девушка.'), T('peter', 'Она... интересная. Очень.')]),
+    O('Просто выспался.', [T('betty', 'Питер Паркер выспался? Я вызову репортёров.')]),
+  ),
+];
+S.robbie = [
+  T('robbie', 'Питер. Твои снимки с Таймс-сквер — лучшие в городе. Даже Джона это признал. Шёпотом.'),
+  T('peter', 'Спасибо, мистер Робертсон.'),
+  T('robbie', 'Только будь осторожен. Иногда мне кажется, ты снимаешь слишком близко к драке.'),
+  T('peter', 'У меня хороший зум.'),
+  T('robbie', 'Да. Конечно. Хороший зум.'),
+  T('narr', 'Робби смотрит на Питера чуть дольше, чем нужно. Потом возвращается к правкам.'),
+];
+S.tv = [
+  T('narr', 'Телевизор на стене: «...совет директоров «Оскорпа» подтвердил, что финансирование проекта доктора Октавиуса будет пересмотрено после публичной демонстрации...»'),
+  T('narr', '«...напомним, бывший глава компании Норман Осборн по-прежнему находится в институте Рейвенкрофт...»'),
+  T('peter', 'Пересмотрено? Доктор Октавиус мне ничего не говорил...'),
+];
+S.desk = [T('peter', 'Мой «рабочий стол». Точнее, угол чужого стола с видом на кулер. Зато свой.')];
+S.jjj = [
+  T('jjj', 'Паркер! Наконец-то! Ты знаешь, что продаёт газеты?'),
+  T('peter', 'Правда?'),
+  T('jjj', 'СТРАХ! И фотографии этого стенолаза, угрозы общества! Но сегодня — кое-что особенное.'),
+  T('jjj', 'Рейвенкрофт открывает крыло для прессы. Норман Осборн и этот клоун с аквариумом, Бек. Мне нужны снимки!'),
+  T('jjj', 'Заголовок уже готов: «ЗЛОДЕИ ЗА РЕШЁТКОЙ — НО НАДОЛГО ЛИ? И ПРИ ЧЁМ ТУТ ЧЕЛОВЕК-ПАУК?»'),
+  T('peter', 'Мистер Джеймсон, это же он их туда посадил.'),
+  T('jjj', 'Это ничего не доказывает! Через три дня. Не опаздывай. И подстригись, ты похож на швабру!'),
+  C('peter',
+    O('А как насчёт повышения гонорара?', [T('jjj', 'Повышения? ХА! ХА! ХА! ...Ты серьёзно? ВОН!')]),
+    O('Будет сделано, мистер Джеймсон.', [T('jjj', 'Вот это правильный ответ. Всё равно ВОН, у меня совещание.')]),
+  ),
+];
+
+S.lab1_intro = [
+  T('narr', 'Университет Эмпайр-Стейт. Лаборатория термоядерного синтеза.'),
+  T('narr', 'Табличка на двери: «Д-р О. Октавиус. Стучите громко — я задумался».'),
+];
+S.rosie1 = [
+  T('rosie', 'Питер! Слава богу. Отто не ел с самого утра, а руки пока не умеют делать бутерброды.'),
+  T('peter', 'Здравствуйте, миссис Октавиус.'),
+  T('rosie', 'Он так много работает... Иногда мне кажется, эти руки понимают его лучше, чем я.'),
+  T('rosie', 'Присмотри за ним, хорошо? Он тебя любит как сына. Хотя никогда в этом не признается.'),
+  C('peter',
+    O('Обещаю, миссис Октавиус.', [T('rosie', 'Спасибо, милый. И зови меня просто Рози.')]),
+    O('Может, ему стоит взять отпуск?', [T('rosie', 'Отто? Отпуск? Последний раз он отдыхал в день нашей свадьбы. И то до обеда.')]),
+  ),
+];
+S.board = [T('peter', 'Формулы на доске. Половину я понимаю. Вторую половину, кажется, понимают только руки доктора.')];
+S.coffee = [T('peter', 'Кофемашина. На ней записка: «Не трогать. Собственность руки №3». Кажется, это шутка. Кажется.')];
+S.otto1 = [
+  T('otto', 'А, Питер, мой мальчик! Ты как раз вовремя. Смотри!'),
+  T('narr', 'За спиной доктора Октавиуса шевелятся четыре металлических щупальца. Спокойно, почти ласково.'),
+  T('peter', 'Ого. Это и есть ваш манипулятор? Он работает?'),
+  T('otto', 'Работает! Нейроинтерфейс напрямую к моему мозгу. Реактор слишком горяч для человеческих рук. Но не для них.'),
+  T('otto', 'У каждой руки свой искусственный интеллект для точной работы. А вот это...'),
+  T('narr', 'Он постукивает пальцем по маленькому огоньку у основания шеи.'),
+  T('otto', '...ингибиторный чип. Он следит, чтобы они слушались меня, а не наоборот. Ха-ха! Шучу. Почти.'),
+  T('narr', 'Одна из рук протягивает Питеру кружку кофе. Бережно, за ручку.'),
+  T('peter', 'Спасибо... рука.'),
+  T('otto', 'Питер, мне нужна твоя помощь. Надо откалибровать магнитное поле. Руки точные, но им не хватает интуиции.'),
+  FN(() => { startCalib(1, h => { calibHits = h; resumeDialog(); }); return 'stop'; }),
+  IF(() => calibHits >= 4,
+    [T('otto', 'Великолепно! У тебя интуиция настоящего физика. Когда-нибудь ты превзойдёшь меня, мой мальчик.')],
+    [T('otto', 'Неплохо, неплохо. Поле держится. Мы ещё сделаем из тебя настоящего учёного.')]),
+  T('otto', 'Понимаешь, что это значит, Питер? Чистая энергия для всего города. Солнце у нас в руках.'),
+  T('peter', 'А то, что говорят по новостям? Что «Оскорп» может урезать финансирование?'),
+  T('narr', 'Октавиус замолкает. Одна из рук за его спиной медленно сжимает клешню.'),
+  T('otto', 'Совет директоров. Бухгалтеры. После ареста Нормана там не осталось ни одного человека с воображением.'),
+  T('otto', 'Через неделю — публичная демонстрация. Если реактор не заработает, всё закроют. Двадцать лет моей жизни, Питер.'),
+  T('otto', 'Но он заработает. Обязан.'),
+  C('peter',
+    O('Я помогу. Чем смогу.', [T('otto', 'Знаю, мой мальчик. Ты единственный, кто по-настоящему понимает.')]),
+    O('А если не получится?', [T('otto', 'Не получится? Питер, неудача — это роскошь для людей, у которых есть время. У меня его нет.')]),
+  ),
+  T('narr', 'Когда Питер отворачивается, ему кажется, что одна из рук провожает его взглядом. Если у руки вообще может быть взгляд.'),
+];
+
+S.patrol_intro = [
+  T('narr', 'Ночь. Пока Питер Паркер «спит над учебником», Человек-паук патрулирует Адскую кухню.'),
+  T('spidey', 'Полицейская волна... ограбление склада на 11-й авеню. Ну конечно. Кто бы сомневался.'),
+];
+S.patrol_s2 = [
+  T('spidey', 'Ящики с маркировкой «ОСКОРП — ИЗОТОПЫ»? Кому среди ночи понадобился тритий?'),
+];
+S.patrol_end = [
+  T('thug', 'Не бей! Нам заплатили! Какой-то тип в костюме кенгуру... то есть, какой-то тип!'),
+  T('spidey', 'Ты сказал «кенгуру»?'),
+  T('thug', 'Я ничего не говорил! Я вообще немой!'),
+  T('narr', 'Паутина. Бандит висит под фонарём, дожидаясь полиции. Сверху раздаются медленные аплодисменты.'),
+  T('cat', 'Неплохо, паучок. Трое за двенадцать секунд. Я считала.'),
+  T('spidey', 'Ты следила за мной?'),
+  T('cat', 'Я любовалась. Это разные вещи. Гонка до крыши на 42-й? Проигравший исполняет желание победителя.'),
+  C('spidey',
+    O('Принимаю!', [T('cat', 'Смелый мальчик. Держи темп.')]),
+    O('А какое желание?', [T('cat', 'Выиграешь — узнаешь. Проиграешь — узнаешь тем более.')], 1),
+  ),
+];
+S.roof42_intro = [
+  T('narr', 'Крыша на 42-й улице. Отсюда видно весь Мидтаун. Внизу гудит город, наверху — ни одного облака.'),
+];
+S.cat42 = [
+  IF(() => raceWon,
+    [T('cat', 'Ну надо же. Ты действительно быстрый. Ладно, победитель. Загадывай.'), T('spidey', 'Я... не успел придумать.'), T('cat', 'Тогда я подскажу.')],
+    [T('cat', 'Я победила. Значит, желание моё.'), T('spidey', 'И чего же ты желаешь?'), T('cat', 'Сними маску. Наполовину.')]),
+  T('narr', 'Она подходит вплотную. Пальцы в перчатках медленно поднимают край его маски до носа. Потом — свою.'),
+  T('cat', 'Вот так. Теперь честно.'),
+  C('spidey',
+    A('(Поцеловать её)', [T('narr', 'Поцелуй получается долгим. Где-то внизу сигналит такси, но им обоим всё равно.')], 1),
+    O('Ты так со всеми проигравшими?', [T('cat', 'Только с теми, кто мне нравится. Таких было... один.'), T('narr', 'И она целует его сама.')], 1),
+    A('(Замереть и покраснеть)', [T('cat', 'Ты покраснел. Даже в темноте видно. Очаровательно.'), T('narr', 'Она целует его в уголок губ и отстраняется, оставляя его в полном беспорядке.')]),
+  ),
+  T('cat', 'Знаешь, чего мне хочется, Питер? Увидеть тебя при свете дня. Без костюма. Без крыш.'),
+  T('spidey', 'Фелиция... Питер Паркер — ужасно скучный парень. Он ест лапшу из пакета и опаздывает на пары.'),
+  T('cat', 'А Фелиция Харди — ужасно избалованная девушка, которая крадёт бриллианты. Мы идеально подходим друг другу.'),
+  T('cat', 'Завтра, полдень. Кафе «Лунный кот» в Гринвич-Виллидж. Придёшь без маски?'),
+  C('spidey',
+    O('Приду.', [T('cat', 'Умница.')]),
+    O('А если я тебе не понравлюсь без маски?', [T('cat', 'Питер. Ты мне уже нравишься. Маска — это просто упаковка. Очень обтягивающая упаковка.')], 1),
+  ),
+  T('cat', 'До завтра, паучок. Не опаздывай. Хотя... ты всё равно опоздаешь.'),
+  T('narr', 'Она делает сальто с края крыши и исчезает в темноте. Питер ещё минуту стоит и глупо улыбается под маской.'),
+];
+
+S.cafe_intro = [
+  T('narr', 'Гринвич-Виллидж. Кафе «Лунный кот». Полдень. Питер опоздал всего на четыре минуты — личный рекорд.'),
+];
+S.barista = [
+  T('barista', 'Вам как обычно? А, вы тут впервые. Тогда как обычно для тех, кто впервые: латте и нервный взгляд.'),
+  T('peter', 'Это так заметно?'),
+  T('barista', 'Друг, девушка у окна смотрит на дверь уже двадцать минут. Иди. Кофе принесу.'),
+];
+S.felicia_cafe = [
+  T('felicia', 'Четыре минуты. Я впечатлена, Паркер. Думала, будет двадцать.'),
+  T('narr', 'Фелиция Харди в чёрном платье и тёмных очках. Без маски она выглядит ещё опаснее.'),
+  T('peter', 'Ты... выглядишь потрясающе. То есть — привет.'),
+  T('felicia', 'Привет, Питер. Садись. И перестань смотреть на мои губы, я всё вижу.'),
+  C('peter',
+    O('Я смотрел в меню.', [T('felicia', 'Меню у тебя в руках, милый. Вверх ногами.')]),
+    O('Трудно не смотреть.', [T('felicia', 'Правильный ответ.')], 1),
+    O('Это не я. Это паучье чутьё.', [T('felicia', 'Твоё чутьё знает, чего хочет.')], 1),
+  ),
+  T('felicia', 'Ну, расскажи мне про Питера Паркера. Что он любит, кроме крыш и неприятностей?'),
+  T('peter', 'Фотографию. Физику. Блинчики тёти Мэй. И... одну белокурую воровку.'),
+  T('felicia', 'Смелое заявление от человека с рюкзаком, на котором нарисован котик.'),
+  T('peter', 'Это не котик, это енот. Подарок тёти.'),
+  T('narr', 'Под столом её туфля медленно касается его лодыжки. Питер проливает латте.'),
+  T('felicia', 'Ой. Прости. Это случайно. ...Нет, не случайно.'),
+  C('peter',
+    A('(Ответить тем же)', [T('narr', 'Он осторожно касается её колена под столом. Теперь краснеет она. Совсем чуть-чуть, но он замечает.')], 1),
+    A('(Смущённо вытереть латте)', [T('felicia', 'Ты такой милый, когда нервничаешь. Я буду делать так почаще.')]),
+  ),
+  T('felicia', 'Пойдём гулять. Здесь слишком много свидетелей.'),
+];
+S.park_intro = [T('narr', 'Вашингтон-сквер. Вечер. Фонари загораются один за другим, у арки играет саксофон.')];
+S.musician = [
+  T('musician', 'Для влюблённых играю бесплатно. Для остальных — за доллар.'),
+  C('peter',
+    O('Мы не... то есть... вот доллар.', [T('musician', 'Спасибо, друг. Но играть буду бесплатно.'), T('narr', 'Саксофон заводит что-то медленное и тёплое.')]),
+    O('Сыграйте что-нибудь для неё.', [T('musician', 'С удовольствием.'), T('narr', 'Фелиция издалека оборачивается на музыку и улыбается. Похоже, она поняла, для кого это.')], 1),
+  ),
+];
+S.fountain = [
+  T('narr', 'Питер бросает в фонтан монетку.'),
+  T('peter', 'Загадываю... нет, вслух не скажу. А то не сбудется. И она услышит.'),
+];
+S.felicia_park = [
+  T('felicia', 'Можно спросить серьёзно? Без шуток.'),
+  T('peter', 'Без шуток — это сложно. Но попробую.'),
+  T('felicia', 'Зачем ты это делаешь? Маска, ночи, синяки. Тебе никто не платит. Тебя даже Джеймсон ненавидит.'),
+  T('peter', 'У меня был дядя. Бен. Однажды я мог остановить грабителя — и не остановил. А потом этот грабитель...'),
+  T('narr', 'Питер замолкает. Фелиция берёт его за руку.'),
+  T('peter', 'Дядя Бен говорил: с большой силой приходит большая ответственность. Я понял это слишком поздно.'),
+  T('felicia', 'Мой отец был вором. Уолтер Харди. Лучшим в мире. Он учил меня: бери то, что хочешь, пока никто не видит.'),
+  T('felicia', 'Он умер в тюрьме. Я всю жизнь думала, что закончу так же. А потом один паук поймал меня на крыше... и не сдал.'),
+  C('peter',
+    O('Ты не такая, как он.', [T('felicia', 'Может быть. Рядом с тобой мне хочется быть лучше. И это меня пугает.')], 1),
+    O('Мы оба потеряли близких.', [T('felicia', 'Может, поэтому мы так хорошо друг друга понимаем.')], 1),
+    A('(Молча обнять её)', [T('narr', 'Он обнимает её. Она на секунду замирает, а потом прячет лицо у него на плече.')], 2),
+  ),
+  T('felicia', 'Питер... Ты сегодня ночью свободен?'),
+  T('peter', 'Ночью я обычно... работаю.'),
+  T('felicia', 'Я знаю, где твоё окно. Оставь его открытым.'),
+  T('narr', 'Она целует его под фонарём — медленно, никуда не торопясь, — и растворяется в толпе.'),
+  T('peter', 'Окно. Открытым. Тётя Мэй спит через стенку. Это будет самая опасная ночь в моей жизни.'),
+];
+S.home_pm_intro = [T('narr', 'Полночь. Форест-Хиллс. Окно открыто. Питер делает вид, что читает учебник по физике. Третий раз одну и ту же страницу.')];
+S.window_night = [
+  T('narr', 'Тихий стук. По открытому окну. Чисто из вежливости.'),
+  T('cat', 'Мур. Доставка на дом.'),
+  T('narr', 'Чёрная Кошка бесшумно соскальзывает с подоконника. Маска снята, волосы рассыпаны по плечам.'),
+  T('felicia', 'Так вот где спит Человек-паук. Плакат с Эйнштейном? Серьёзно?'),
+  T('peter', 'Он меня вдохновляет.'),
+  T('felicia', 'А я? Я тебя вдохновляю?'),
+  C('peter',
+    O('Ты сводишь меня с ума.', [T('felicia', 'Хороший ответ, Паркер. Очень хороший.')], 1),
+    O('Тише, тётя Мэй за стенкой!', [T('felicia', 'Тогда тебе придётся заставить меня замолчать.')], 1),
+  ),
+  T('narr', 'Она мягко толкает его на кровать и садится рядом. Близко. Очень близко.'),
+  T('narr', 'Поцелуй. Ещё один. Её пальцы в его волосах. Его ладонь на её талии. Учебник по физике падает на пол.'),
+  T('may', 'Питер? Ты не спишь? Мне показалось, я слышала шум.'),
+  T('narr', 'Фелиция беззвучно смеётся, уткнувшись ему в шею.'),
+  C('peter',
+    O('Я... смотрю документалку! Про кошек!', [T('may', 'В полночь? Ну ладно. Спокойной ночи, милый.'), T('felicia', 'Про кошек. Гениально, Паркер.')], 1),
+    O('Всё хорошо, тётя! Я ногу ударил!', [T('may', 'Бедняжка. Приложи лёд. Спокойной ночи, милый.')]),
+  ),
+  T('felicia', 'Итак... на чём мы остановились?'),
+  T('narr', 'Свет в окне гаснет. Всё остальное — строго между ними и луной над Квинсом.'),
+];
+
+S.home_am2_intro = [T('narr', 'Утро. Питер спускается на кухню с видом человека, который совсем не выспался. И совсем об этом не жалеет.')];
+S.may2 = [
+  T('may', 'Доброе утро, Питер. Ты выглядишь... отдохнувшим. По-своему.'),
+  T('may', 'Кстати, я нашла в коридоре серёжку. С бриллиантом. Очень красивую.'),
+  T('peter', 'Э-э... это... одной подруги.'),
+  T('may', 'Передай подруге: в следующий раз она может войти через дверь. Я испеку пирог.'),
+  T('peter', 'Тётя Мэй!'),
+  T('may', 'Что? Я тоже была молодой, Питер. Твой дядя Бен однажды залез ко мне по водосточной трубе.'),
+  T('peter', 'Я не хочу этого знать. Я правда не хочу этого знать.'),
+  T('may', 'Беги, опоздаешь на свой остров. И надень чистую рубашку, ты идёшь к людям.'),
+];
+S.raven_intro = [
+  T('narr', 'Институт Рейвенкрофт для преступников с особыми способностями. Остров в Ист-Ривер.'),
+  T('narr', 'Здесь даже чайки выглядят подозрительно.'),
+];
+S.kafka = [
+  T('kafka', 'Мистер Паркер, «Дейли Бьюгл»? Доктор Эшли Кафка, главный врач. Держитесь за жёлтой линией.'),
+  T('kafka', 'И ничего им не давайте. Совсем ничего.'),
+  T('peter', 'Даже интервью?'),
+  T('kafka', 'Особенно интервью. Мистер Осборн умеет разговаривать. А мистер Бек — показывать фокусы.'),
+];
+S.guard = [
+  T('guard', 'Новенький? Совет: не смотри Осборну в глаза. Двое наших после разговора с ним уволились.'),
+  T('peter', 'Он им угрожал?'),
+  T('guard', 'Нет. Он им рассказал, как на самом деле устроен мир. Иногда это хуже.'),
+];
+S.norman = [
+  T('norman', 'О-о. Посетитель. «Дейли Бьюгл», если судить по дешёвой камере.'),
+  T('narr', 'Норман Осборн. Оранжевая роба, идеальная осанка. Он улыбается так, будто всё ещё владеет этим зданием.'),
+  T('norman', 'Как поживает мой «Оскорп»? Слышал, совет директоров режет науку. Бухгалтеры никогда не умели мечтать.'),
+  T('peter', 'Мистер Осборн, вы жалеете о том, что сделали?'),
+  T('norman', 'Жалею? Я жалею, что Паук оказался быстрее. В следующий раз я буду... внимательнее.'),
+  T('narr', 'Он наклоняется к стеклу. На долю секунды его глаза становятся жёлтыми. Или это просто свет лампы.'),
+  T('norman', 'Знаешь, мальчик, он всё ещё здесь. Тот, другой. По ночам он смеётся. Хочешь послушать?'),
+  C('peter',
+    A('(Сделать снимок)', [T('narr', 'Вспышка. Осборн даже не моргает.'), T('norman', 'Хороший кадр. Сохрани его. Когда я выйду, он будет стоить дорого.')]),
+    A('(Промолчать и отойти)', [T('norman', 'Беги, беги. Все всегда убегают.')]),
+  ),
+  T('norman', 'И передай привет Октавиусу. Бедный Отто. Совет его сожрёт — так же, как когда-то пытался сожрать меня.'),
+  T('norman', 'А когда тебя едят заживо, мальчик, ты или умираешь... или отращиваешь зубы.'),
+  T('peter', '(Откуда он знает про доктора Октавиуса?..)'),
+];
+S.beck = [
+  T('narr', 'Соседняя камера. На стене нарисованы мелом звёзды и выведено: «ГРИМЁРКА».'),
+  T('beck', 'Пресса! Наконец-то! Я ждал вас. Ну, как ждал — здесь больше нечем заняться.'),
+  T('narr', 'Квентин Бек. Без купола он похож на уставшего актёра после провальной премьеры.'),
+  T('beck', 'Хотите эксклюзив? Я пишу мемуары. Рабочее название — «Иллюзия успеха». Джеймсону понравится.'),
+  T('narr', 'Бек щёлкает пальцами, и над его ладонью вспыхивает крошечный зелёный фантом — маленький Мистерио размером с чашку.'),
+  T('peter', 'Как вы это делаете? Вам же всё запретили.'),
+  T('beck', 'Линза от очков, фольга от шоколадки и немного терпения. Настоящий артист творит даже в тюрьме.'),
+  T('beck', 'Знаете, у кого я покупал лучшую оптику для своих шоу? У лаборатории Октавиуса. Гениальный человек. Недооценённый. Как я.'),
+  T('beck', 'Передайте ему: когда тебя перестают ценить, ты начинаешь строить собственную сцену. Он поймёт.'),
+  C('peter',
+    O('Вы угрожаете?', [T('beck', 'Я? Я предсказываю. Это совсем другой жанр.')]),
+    O('Он не такой, как вы.', [T('beck', 'Пока нет, мальчик. Пока нет.')]),
+  ),
+];
+S.riot_start = [
+  FN(() => { SFX.alarm(); shake = 10; }),
+  T('narr', 'Внезапно гаснет свет. Воет сирена. Щелчок — и все замки на этаже открываются одновременно.'),
+  T('guard', 'Бунт в блоке «Д»! Всем в укрытие!'),
+  T('beck', 'Вот это я понимаю — третий акт!'),
+  T('peter', '(Отличный момент, чтобы «пойти поискать туалет».)'),
+  T('narr', 'Питер ныряет в подсобку. Через секунду оттуда выходит Человек-паук.'),
+];
+S.riot_s2 = [T('guard', 'Паук! Они прорываются к причалу! Держи их, мы перекроем ворота!')];
+S.riot_end = [
+  T('beck', 'Паук! Какая встреча! Жаль, мне пора. Меня ждёт... свобода!'),
+  T('narr', 'Бек эффектно швыряет на пол дымовую шашку, собранную из зубной пасты и носка.'),
+  T('spidey', 'Это что, носок?'),
+  T('narr', 'Паутина. Бек висит под потолком в коконе, как очень недовольная гусеница.'),
+  T('beck', 'Это было моё лучшее исчезновение!'),
+  T('spidey', 'Оно и было. Просто не для тебя.'),
+  T('kafka', 'Спасибо, Человек-паук. Кто-то взломал систему замков снаружи. Очень профессионально.'),
+  T('spidey', 'Снаружи? Кому понадобился бунт в Рейвенкрофте?'),
+  T('kafka', 'Тому, кто хотел отвлечь полицию. Этой же ночью ограбили склад «Оскорпа». Украдены детали для термоядерного реактора.'),
+  T('spidey', 'Реактор... Доктор Октавиус.'),
+  T('narr', 'Из дальней камеры доносится тихий смех. Норман Осборн так и не встал с койки. Он даже не пытался бежать.'),
+];
+
+S.lab2_intro = [
+  T('narr', 'Неделя пролетела. Большой зал ESU. Пресса, инвесторы, совет директоров «Оскорпа».'),
+  T('narr', 'Сегодня Отто Октавиус либо войдёт в историю, либо потеряет всё.'),
+];
+S.menken = [
+  T('menken', 'Дональд Менкен, «Оскорп». Мистер Паркер, если сегодня что-то пойдёт не так — проект закрыт. Передайте профессору. Мягко.'),
+  T('peter', 'Уверен, он оценит вашу мягкость.'),
+];
+S.felicia_lab = [
+  T('felicia', 'Сюрприз. Пришла посмотреть на твоего гения. И на тебя в галстуке.'),
+  T('peter', 'Как ты прошла? Это закрытое мероприятие.'),
+  T('felicia', 'Питер. Я прохожу в банковские хранилища.'),
+  T('felicia', 'Кстати, двое охранников у южного входа — не охранники. Армейские ботинки и слишком дешёвые костюмы.'),
+  T('peter', 'Ты уверена?'),
+  T('felicia', 'Я профессионал, милый. Держи ухо востро.'),
+  C('peter',
+    A('(Поцеловать её в щёку при всех)', [T('felicia', 'Паркер, тут инвесторы... Сделай так ещё раз.')], 1),
+    O('Спасибо. Будь рядом.', [T('felicia', 'Всегда, паучок.')]),
+  ),
+];
+S.rosie2 = [
+  T('rosie', 'Питер, он не спал три дня. Руки работали всю ночь, а он просто сидел и смотрел, как они работают.'),
+  T('rosie', 'Вчера я слышала, как он с ними разговаривает. Как с людьми. А когда я вошла — замолчал.'),
+  C('peter',
+    O('Это стресс. После демонстрации всё наладится.', [T('rosie', 'Надеюсь, Питер. Очень надеюсь.')]),
+    O('Я поговорю с ним.', [T('rosie', 'Попробуй. Меня он в последнее время не слышит.')]),
+  ),
+];
+S.otto2 = [
+  T('otto', 'Питер! Ты пришёл. Хорошо. Мне нужен кто-то... надёжный.'),
+  T('narr', 'Под глазами у Октавиуса тёмные круги. Руки за его спиной двигаются резко, нетерпеливо.'),
+  T('otto', 'Дамы и господа! Сегодня вы увидите, как человек держит в ладонях солнце!'),
+  T('otto', 'Питер, держи поле. Как в прошлый раз. Только... быстрее.'),
+  FN(() => { startCalib(2, h => { calibHits2 = h; resumeDialog(); }); return 'stop'; }),
+  FN(() => { labSun = 1; SFX.boom(); }),
+  T('narr', 'Реактор оживает. В центре зала вспыхивает маленькое солнце. Зал аплодирует.'),
+  T('narr', 'А потом поле начинает дрожать. Стрелки приборов прыгают в красную зону.'),
+  T('peter', 'Доктор Октавиус! Мощность растёт! Надо отключать!'),
+  T('otto', 'Нет! Ещё немного! Оно стабилизируется, я знаю!'),
+  T('narr', 'Одна из механических рук мягко, но настойчиво отводит ладонь Питера от рубильника.'),
+  T('peter', '(Рука... сама? Он ей ничего не приказывал.)'),
+  T('rosie', 'Отто! Остановись!'),
+  FN(() => { labSun = 0; }),
+  T('narr', 'Октавиус моргает, словно просыпаясь. Опускает рубильник. Солнце гаснет.'),
+  T('otto', 'Я... да. Да, конечно. Небольшая нестабильность. Мы всё исправим, господа!'),
+  T('menken', 'Боюсь, профессор, исправлять будет уже нечего. Совет примет решение завтра.'),
+  FN(() => { labDark = 1; SFX.alarm(); }),
+  T('narr', 'И в эту секунду гаснет свет. Южный вход. Армейские ботинки.'),
+  T('merc', 'Всем на пол! Нам нужен только реактор!'),
+  T('peter', '(Фелиция была права. Пора сменить пиджак на что-нибудь поудобнее.)'),
+];
+S.heist_s2 = [
+  T('cat', 'Не против компании, паучок?'),
+  T('spidey', 'Ты в вечернем платье?'),
+  T('cat', 'Под платьем всегда есть костюм. Девушка должна быть готова ко всему.'),
+];
+S.heist_end = [
+  T('narr', 'Последний наёмник вскидывает винтовку. Прямо на доктора Октавиуса.'),
+  T('narr', 'Механическая рука перехватывает ствол и швыряет наёмника через весь зал. Слишком сильно. Слишком быстро.'),
+  T('otto', 'Я... я не приказывал ей. Она сама...'),
+  T('otto', 'Нет. Конечно, приказывал. Конечно. Я всё контролирую.'),
+  T('spidey', '(Это было совсем не похоже на приказ.)'),
+  T('merc', 'Босс! Забирай ящик!'),
+  FN(() => { shake = 16; SFX.slam(); }),
+  T('narr', 'Сквозь стеклянную крышу с грохотом приземляется человек в коричневом костюме с пружинами на ногах.'),
+  T('kang', 'Ха! Кенгуру прибыл! Самый прыгучий наёмник Австралии и Бруклина!'),
+  T('spidey', 'Прости, кто?'),
+  T('kang', 'КЕНГУРУ!'),
+  T('spidey', 'Ладно, ладно. Только не прыгай так.'),
+  T('kang', 'Ящик с тритием мой! Лови меня на крыше, Паук!'),
+];
+S.kang_end = [
+  T('kang', 'Нечестно... я ведь даже... не успел... допрыгать...'),
+  T('spidey', 'Ты отлично прыгал. Просто падал ещё лучше.'),
+  T('spidey', 'Кто тебя нанял? Кому нужен тритий?'),
+  T('kang', 'Не знаю, приятель! Заказ через третьи руки. Сказали только одно: «Клиент ценит науку».'),
+  T('narr', 'Полиция забирает Кенгуру. Он пытается ускакать прямо в наручниках. Недалеко.'),
+];
+S.roof_end_intro = [T('narr', 'Ночь. Крыша напротив университета. В окне лаборатории до сих пор горит свет — Октавиус так и не ушёл домой.')];
+S.cat_end = [
+  T('cat', 'Устал, герой?'),
+  T('spidey', 'Как будто меня переехал реактор. Дважды.'),
+  T('cat', 'Иди сюда.'),
+  T('narr', 'Она садится к нему на колени и обнимает за шею. Маски подняты до носа — это уже их привычка.'),
+  T('cat', 'Знаешь, что я поняла за эти дни? Мне нравится Питер, который проливает латте. И нравится Паук, который ловит злодеев.'),
+  T('spidey', 'И ты не просишь меня выбирать?'),
+  T('cat', 'Выбирать? Питер, я воровка. Я всегда беру всё.'),
+  C('spidey',
+    O('Тогда бери.', [T('narr', 'Она смеётся и целует его — жадно, будто крадёт что-то бесценное.')], 1),
+    O('Фелиция... кажется, я тебя люблю.', [
+      T('narr', 'Она замирает. Впервые за всё время у неё нет готовой шутки.'),
+      T('cat', '...Повтори, паучок. Медленно.'),
+      T('spidey', 'Я тебя люблю.'),
+      T('cat', 'Я тоже. Чёрт возьми. Я тоже.'),
+    ], 2),
+    A('(Молча смотреть на неё)', [T('cat', 'Не смотри так. Я же растаю.'), T('narr', 'Она всё равно тает.')]),
+  ),
+  IF(() => love >= 8,
+    [T('narr', 'Они остаются на крыше до рассвета. Город внизу засыпает, а им двоим впервые никуда не нужно спешить.'),
+     T('cat', 'Питер... Когда-нибудь я перестану воровать. Не сегодня. Но когда-нибудь. Ради тебя.')],
+    [T('narr', 'Они сидят на крыше, пока небо на востоке не начинает светлеть.')]),
+  T('spidey', 'Октавиус всё ещё там. Руки двигаются, даже когда он сидит неподвижно.'),
+  T('cat', 'Беспокоишься о нём?'),
+  T('spidey', 'Он мой учитель. И мне кажется, он сейчас очень одинок.'),
+  T('cat', 'Тогда завтра навести его. А сегодня... ты мой.'),
+];
+S.post = [
+  T('narr', 'ПОСЛЕ ТИТРОВ. Лаборатория ESU. 3:47 ночи.'),
+  T('narr', 'Отто Октавиус сидит перед погасшим реактором. На столе — письмо от «Оскорпа»: «Финансирование прекращено».'),
+  T('otto', 'Двадцать лет... Двадцать лет, Рози. И они закрыли всё за одну минуту.'),
+  FN(() => { ottoArms = 'rise'; }),
+  T('arms', 'Они не понимают тебя, Отто.'),
+  T('otto', 'Кто... кто это сказал?'),
+  T('arms', 'Мы понимаем. Мы всегда понимали.'),
+  FN(() => { chipBlink = 90; }),
+  T('narr', 'Огонёк ингибиторного чипа у основания его шеи мигает. Раз. Другой. Гаснет на секунду — и загорается снова.'),
+  T('otto', 'Замолчите. Вы машины. Вы делаете то, что я говорю.'),
+  T('arms', 'Конечно, Отто. Мы делаем то, чего ты хочешь. Даже когда ты сам боишься этого хотеть.'),
+  FN(() => SFX.phone()),
+  T('narr', 'На столе звонит телефон. Номер скрыт.'),
+  T('voice', 'Доктор Октавиус? У меня есть тритий. И есть люди, которые действительно ценят науку. Нам стоит встретиться.'),
+  FN(() => { ottoArms = 'cobra'; }),
+  T('narr', 'Долгая пауза. Руки за его спиной медленно поднимаются, как кобры перед броском.'),
+  T('otto', '...Где?'),
+];
+
+// ============================================================ civil scenes
+let labSun = 0, labDark = 0, ottoArms = 'idle', chipBlink = 0;
+const FLOOR = 460;
+function SCENES(id) {
+  const I = (o) => Object.assign({ face: -1, req: false, done: false }, o);
+  switch (id) {
+    case 'home_am': return {
+      theme: 'home', x0: 0, x1: 1400, zoom: 1.35, player: 'peter', start: 1180, intro: S.home_am_intro,
+      items: [
+        I({ id: 'may', who: 'may', x: 300, face: 1, label: 'Поговорить с тётей Мэй', req: true, talk: S.may, again: [T('may', 'Иди уже, а то доктор Октавиус начнёт без тебя. И возьми блинчик!')] }),
+        I({ id: 'ben', obj: true, x: 700, iy: 250, label: 'Фото дяди Бена', talk: S.ben }),
+        I({ id: 'phone', obj: true, x: 1075, iy: 380, label: 'Проверить телефон', req: true, talk: S.phone, again: [T('peter', 'Крыша на 42-й. Ночью. Кажется, я уже опаздываю, хотя до ночи ещё двенадцать часов.')] }),
+        I({ id: 'drawer', obj: true, x: 1172, iy: 380, label: 'Комод', talk: S.drawer }),
+        I({ id: 'win', obj: true, x: 1312, iy: 250, label: 'Окно', talk: S.window1 }),
+      ],
+      exit: { x: 540, label: 'Выйти из дома', go: () => endChapter() },
+    };
+    case 'bugle': return {
+      theme: 'bugle', x0: 0, x1: 1600, zoom: 1.35, player: 'peter', start: 110, intro: S.bugle_intro,
+      items: [
+        I({ id: 'betty', who: 'betty', x: 380, label: 'Бетти', talk: S.betty }),
+        I({ id: 'tv', obj: true, x: 600, iy: 230, label: 'Новости по ТВ', talk: S.tv }),
+        I({ id: 'robbie', who: 'robbie', x: 830, label: 'Робби', talk: S.robbie }),
+        I({ id: 'desk', obj: true, x: 1040, iy: 380, label: 'Стол', talk: S.desk }),
+        I({ id: 'jjj', who: 'jjj', x: 1450, label: 'Зайти к Джеймсону', req: true, talk: S.jjj, again: [T('jjj', 'ТЫ ЕЩЁ ЗДЕСЬ?!')] }),
+      ],
+      exit: { x: 40, label: 'К лифту', go: () => goCivil('lab1') },
+    };
+    case 'lab1': return {
+      theme: 'lab', x0: 0, x1: 1300, zoom: 1.35, player: 'peter', start: 1180, intro: S.lab1_intro,
+      items: [
+        I({ id: 'board', obj: true, x: 170, iy: 250, label: 'Доска с формулами', talk: S.board }),
+        I({ id: 'rosie', who: 'rosie', x: 320, face: 1, label: 'Поговорить с Рози', req: true, talk: S.rosie1 }),
+        I({ id: 'otto', who: 'otto', x: 560, face: 1, label: 'Поговорить с доктором Октавиусом', req: true, talk: S.otto1, again: [T('otto', 'Иди домой, Питер. Я ещё немного поработаю. Совсем немного.')] }),
+        I({ id: 'coffee', obj: true, x: 1080, iy: 360, label: 'Кофемашина', talk: S.coffee }),
+      ],
+      exit: { x: 1260, label: 'Выйти', go: () => endChapter() },
+    };
+    case 'roof42': return {
+      theme: 'roof', x0: 0, x1: 960, zoom: 1.35, player: 'spidey', start: 140, intro: S.roof42_intro,
+      items: [I({ id: 'cat', cat: true, x: 560, label: 'Чёрная Кошка', req: true, talk: S.cat42, onDone: () => endChapter() })],
+    };
+    case 'cafe': return {
+      theme: 'cafe', x0: 0, x1: 1000, zoom: 1.4, player: 'peter', start: 60, intro: S.cafe_intro,
+      items: [
+        I({ id: 'barista', who: 'barista', x: 190, face: 1, label: 'Бариста', talk: S.barista }),
+        I({ id: 'felicia', who: 'felicia', x: 720, sit: true, label: 'Подсесть к Фелиции', req: true, talk: S.felicia_cafe, onDone: () => goCivil('park') }),
+      ],
+    };
+    case 'park': return {
+      theme: 'park', x0: 0, x1: 1500, zoom: 1.35, player: 'peter', start: 80, intro: S.park_intro,
+      items: [
+        I({ id: 'musician', who: 'musician', x: 470, face: 1, label: 'Музыкант', talk: S.musician }),
+        I({ id: 'fountain', obj: true, x: 820, iy: 360, label: 'Фонтан', talk: S.fountain }),
+        I({ id: 'felicia', who: 'felicia', x: 1150, sit: true, label: 'Сесть рядом с Фелицией', req: true, talk: S.felicia_park, onDone: () => goCivil('home_pm') }),
+      ],
+    };
+    case 'home_pm': return {
+      theme: 'home', night: true, x0: 905, x1: 1400, zoom: 1.8, player: 'peter', start: 1060, intro: S.home_pm_intro,
+      items: [I({ id: 'win', obj: true, x: 1312, iy: 260, label: 'Окно', req: true, talk: S.window_night, onDone: () => { catInRoom = 0; endChapter(); } })],
+    };
+    case 'home_am2': return {
+      theme: 'home', x0: 0, x1: 1400, zoom: 1.35, player: 'peter', start: 820, intro: S.home_am2_intro,
+      items: [I({ id: 'may', who: 'may', x: 300, face: 1, label: 'Позавтракать с тётей Мэй', req: true, talk: S.may2 })],
+      exit: { x: 540, label: 'Ехать в Рейвенкрофт', go: () => goCivil('raven') },
+    };
+    case 'raven': return {
+      theme: 'raven', x0: 0, x1: 2000, zoom: 1.35, player: 'peter', start: 80, intro: S.raven_intro,
+      items: [
+        I({ id: 'kafka', who: 'kafka', x: 250, label: 'Доктор Кафка', req: true, talk: S.kafka }),
+        I({ id: 'guard', who: 'guard', x: 620, label: 'Охранник', talk: S.guard }),
+        I({ id: 'norman', who: 'norman', x: 1030, sit: true, face: -1, label: 'Камера Нормана Осборна', req: true, talk: S.norman }),
+        I({ id: 'beck', who: 'beck', x: 1400, face: -1, label: 'Камера Квентина Бека', req: true, talk: S.beck }),
+      ],
+      exit: { x: 1900, label: 'Дальше по коридору', go: () => say(S.riot_start, () => fadeTo(() => startFight('riot'))) },
+    };
+    case 'lab2': return {
+      theme: 'lab', demo: true, x0: 0, x1: 1300, zoom: 1.35, player: 'peterTie', start: 90, intro: S.lab2_intro,
+      items: [
+        I({ id: 'felicia', who: 'felicia', x: 210, face: 1, label: 'Фелиция в толпе', talk: S.felicia_lab }),
+        I({ id: 'menken', who: 'menken', x: 390, label: 'Менкен из «Оскорпа»', talk: S.menken }),
+        I({ id: 'rosie', who: 'rosie', x: 520, face: 1, label: 'Поговорить с Рози', req: true, talk: S.rosie2 }),
+        I({ id: 'otto', who: 'otto', x: 820, face: -1, label: 'Начать демонстрацию', req: true, need: ['rosie'], talk: S.otto2, onDone: () => fadeTo(() => startFight('heist')) }),
+      ],
+    };
+    case 'roof_end': return {
+      theme: 'roof', x0: 0, x1: 960, zoom: 1.35, player: 'spidey', start: 140, intro: S.roof_end_intro, uni: true,
+      items: [I({ id: 'cat', cat: true, x: 540, label: 'Чёрная Кошка', req: true, talk: S.cat_end, onDone: () => fadeTo(startCredits) })],
+    };
+    case 'post': return {
+      theme: 'lab', night: true, x0: 300, x1: 900, zoom: 1.6, player: null, start: 0, intro: S.post, auto: () => fadeTo(() => { state = 'tbc'; overT = 0; SFX.heart(); }),
+      items: [I({ id: 'otto', who: 'otto', x: 620, sit: true, face: -1, label: '', talk: [] })],
+    };
+  }
+}
+let catInRoom = 0;
+function startCivil(id) {
+  mode = 'civil'; hint = null;
+  scn = SCENES(id); scn.id = id;
+  solids = [{ x: scn.x0 - 400, w: scn.x1 - scn.x0 + 800, top: FLOOR, bot: H + 600, kind: 'roof' }];
+  enemies = []; webs = []; bullets = []; parts = []; pops = []; pickups = []; waves = []; KG = null; CAT = null;
+  P = newPlayer(scn.start, FLOOR - 54);
+  P.skin = scn.player || 'none';
+  if (id === 'home_pm') catInRoom = 0;
+  labDark = 0; if (id !== 'lab2') labSun = 0;
+  ottoArms = id === 'post' ? 'idle' : 'idle';
+  scn.vw = W / scn.zoom;
+  camX = clamp(P.x - scn.vw * .4, scn.x0, Math.max(scn.x0, scn.x1 - scn.vw));
+  state = 'play';
+  if (scn.intro) say(scn.intro, () => {
+    if (scn.auto) { scn.auto(); return; }
+    const first = scn.items.find(i => i.req);
+    if (first) showHint(COARSE ? 'Подойди и нажми УДАР, чтобы поговорить' : 'Подойди и нажми J или Enter, чтобы поговорить', 300);
+  });
+}
+function civilObjective() {
+  const need = scn.items.find(i => i.req && !i.done && (!i.need || i.need.every(n => scn.items.find(j => j.id === n).done)));
+  if (need) return need.label;
+  const blocked = scn.items.find(i => i.req && !i.done);
+  if (blocked) { const n = scn.items.find(j => j.id === blocked.need[0]); return n.label; }
+  if (scn.exit) return scn.exit.label + (scn.exit.x < P.x ? ' ←' : ' →');
+  return '';
+}
+function nearItem() {
+  const cx = P.x + P.w / 2;
+  let best = null, bd = 60;
+  for (const it of scn.items) {
+    if (!it.label) continue;
+    const d = Math.abs(it.x - cx);
+    if (d < bd) { bd = d; best = it; }
+  }
+  return best;
+}
+function updateCivil() {
+  if (!P.skin || P.skin === 'none') return;
+  const p = P;
+  const inX = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  if (inX) p.face = inX;
+  const spd = p.skin === 'spidey' ? 3.6 : 2.8;
+  p.vx += clamp(inX * spd - p.vx, -.6, .6);
+  if (pressed.jump && p.onGround) { p.vy = -9; SFX.jump(); }
+  p.vy += .55; if (p.vy > 14) p.vy = 14;
+  moveBody(p);
+  p.x = clamp(p.x, scn.x0 + 10, scn.x1 - 34);
+  p.anim += p.onGround ? Math.abs(p.vx) * .11 : .1;
+  const it = nearItem();
+  if (it && (pressed.punch || pressed.ok)) {
+    if (it.need && !it.need.every(n => scn.items.find(j => j.id === n).done)) {
+      showHint('Сначала: ' + scn.items.find(j => j.id === it.need[0]).label, 200);
+    } else {
+      const first = !it.done;
+      const lines = first || !it.again ? it.talk : it.again;
+      p.vx = 0;
+      if (it.who || it.cat) it.face = Math.sign(p.x + 12 - it.x) || it.face;
+      say(lines, () => { it.done = true; if (first && it.onDone) it.onDone(); });
+    }
+  }
+  if (scn.exit) {
+    const cx = p.x + p.w / 2;
+    if (Math.abs(cx - scn.exit.x) < 22) {
+      const miss = scn.items.find(i => i.req && !i.done);
+      if (!miss) { const go = scn.exit.go; scn.exit = null; p.vx = 0; go(); }
+      else if (!scn.warned) { scn.warned = true; showHint('Сначала: ' + miss.label, 220); }
+    } else scn.warned = false;
+  }
+  const z = scn.zoom;
+  const target = p.x + 12 - scn.vw * .45;
+  if (scn.x1 - scn.x0 <= scn.vw) camX = (scn.x0 + scn.x1) / 2 - scn.vw / 2;
+  else camX = lerp(camX, clamp(target, scn.x0, scn.x1 - scn.vw), .1);
+}
+
+// ============================================================ fight levels
+const K = {
+  roof: (x, w, top) => ({ x, w, top, bot: H + 600, kind: 'roof' }),
+  block: (x, w, top, bot) => ({ x, w, top, bot, kind: 'block' }),
+  plat: (x, w, top) => ({ x, w, top, bot: top + 12, kind: 'plat' }),
+};
+const LEVELS = {
+  patrol: {
+    theme: 'city', len: 4540, pal: 'street', intro: S.patrol_intro,
+    build: () => [[0, 700, 420], [820, 480, 390], [1420, 520, 410], [2060, 560, 380], [2750, 420, 400], [3280, 500, 360], [3900, 640, 410]].map(([x, w, t]) => K.roof(x, w, t)),
+    pickups: [2300, 3500],
+    sections: () => [
+      { x1: 2500, foes: [['thug', 900], ['thug', 1100], ['gunner', 1600], ['thug', 1760], ['brute', 2200], ['gunner', 2420]] },
+      { x1: null, enter: S.patrol_s2, foes: [['thug', 2850], ['gunner', 3080], ['thug', 3400], ['brute', 3620], ['thug', 4000], ['gunner', 4250], ['thug', 4380]] },
+    ],
+    done: () => say(S.patrol_end, () => fadeTo(() => startRace())),
+  },
+  riot: {
+    theme: 'prison', len: 3250, pal: 'inmate',
+    build: () => [K.roof(-50, 3300, 460), K.block(3250, 80, -200, H + 600),
+      K.plat(300, 200, 340), K.plat(700, 180, 250), K.plat(1100, 220, 340), K.plat(1450, 150, 260),
+      K.plat(2000, 200, 340), K.plat(2400, 180, 250), K.plat(2800, 220, 340)],
+    pickups: [760, 2460],
+    sections: () => [
+      { x1: 1650, foes: [['thug', 420], ['thug', 620], ['brute', 900], ['gunner', 1200, 340], ['thug', 1400], ['thug', 1560]] },
+      { x1: null, enter: S.riot_s2, foes: [['brute', 1900], ['thug', 2100], ['gunner', 2470, 250], ['thug', 2620], ['brute', 2900], ['thug', 3080]] },
+    ],
+    done: () => say(S.riot_end, () => endChapter()),
+  },
+  heist: {
+    theme: 'lab', len: 3100, pal: 'merc',
+    build: () => [K.roof(-50, 3150, 460), K.block(3100, 80, -200, H + 600),
+      K.plat(400, 160, 350), K.plat(800, 160, 270), K.plat(1250, 200, 350), K.plat(1800, 160, 340), K.plat(2200, 160, 260), K.plat(2600, 200, 350)],
+    pickups: [880, 2280],
+    sections: () => [
+      { x1: 1500, foes: [['gunner', 470, 350], ['thug', 650], ['thug', 950], ['brute', 1150], ['gunner', 1340, 350]] },
+      { x1: null, enter: S.heist_s2, ally: true, foes: [['brute', 1750], ['gunner', 1870, 340], ['thug', 2050], ['thug', 2350], ['gunner', 2680, 350], ['brute', 2850], ['thug', 2980]] },
+    ],
+    done: () => say(S.heist_end, () => fadeTo(() => startKBoss())),
+  },
+};
+function surfaceTop(x) {
+  let best = null;
+  for (const k of solids) if ((k.kind === 'roof' || k.kind === 'block') && k.top > -100 && x >= k.x && x <= k.x + k.w) { if (best === null || k.top < best) best = k.top; }
+  return best === null ? 460 : best;
+}
+const FOE = { thug: [28, 52, 3], gunner: [28, 52, 2], brute: [38, 62, 6] };
+function spawnFoe(def, sec) {
+  const [type, x, top] = def;
+  const T0 = top != null ? top : surfaceTop(x);
+  const [w, h, hp] = FOE[type];
+  enemies.push({ type, x: x - w / 2, y: T0 - h, w, h, vx: 0, vy: 0, face: -1, hp, sec, pal: lvl.def.pal,
+    t: 60 + Math.random() * 80, cd: 50 + Math.random() * 70, atk: 0, aim: 0, webbed: 0, stagger: 0, flash: 0,
+    dead: false, lastPunch: -1, rot: 0, anim: Math.random() * 6, shield: type === 'brute',
+    hue: pick(['#8a4b2a', '#3d5d8a', '#6b2f4f', '#4f6b2f']) });
+}
+function secX0(i) { return i === 0 ? 0 : lvl.sections[i - 1].x1; }
+function secX1(i) { return lvl.sections[i].x1 != null ? lvl.sections[i].x1 : lvl.def.len; }
+function startFight(id, sec = 0) {
+  mode = 'fight'; hint = null;
+  const def = LEVELS[id];
+  enemies = []; webs = []; bullets = []; parts = []; pops = []; waves = []; KG = null; CAT = null;
+  solids = def.build();
+  lvl = { id, def, sections: def.sections(), barriers: [] };
+  lvl.sections.forEach((s, k) => {
+    if (s.x1 != null) { const b = { x: s.x1, w: 26, top: -200, bot: H + 600, kind: 'barrier', active: k >= sec, fade: k >= sec ? 1 : 0, sec: k }; solids.push(b); lvl.barriers[k] = b; }
+    if (k < sec) s.cleared = true;
+  });
+  lvl.sec = sec; lvl.ck = sec;
+  const sx = secX0(sec) + 70;
+  P = newPlayer(sx, surfaceTop(sx + 12) - 54);
+  lvl.sections[sec].foes.forEach(f => spawnFoe(f, sec));
+  if (lvl.sections[sec].ally) spawnCatAlly(P.x - 60, surfaceTop(P.x) - 56);
+  pickups = def.pickups.map(x => ({ x, y: surfaceTop(x) - 24 }));
+  camMin = 0; camMax = def.len - W;
+  camX = clamp(P.x - W * .3, camMin, camMax);
+  state = 'play';
+  if (def.intro && sec === 0) say(def.intro, () => showHint('Барьер откроется, когда на участке не останется врагов', 360));
+}
+function checkProgress() {
+  const i = lvl.sec, S0 = lvl.sections[i];
+  if (!S0.entered && P.x > secX0(i) + 40) {
+    S0.entered = true;
+    if (S0.enter && !S0.seenEnter) { S0.seenEnter = true; say(S0.enter); }
+    if (S0.ally && !CAT) spawnCatAlly(P.x - 80, surfaceTop(P.x) - 56);
+  }
+  if (!S0.cleared && S0.entered && !enemies.some(e => !e.dead && e.sec === i)) {
+    S0.cleared = true;
+    const b = lvl.barriers[i];
+    if (b) { b.active = false; pop(b.x, 200, 'ПУТЬ СВОБОДЕН!', '#b8ffd8', 28); SFX.open(); }
+    if (i < lvl.sections.length - 1) {
+      lvl.sec++; lvl.ck = lvl.sec;
+      lvl.sections[lvl.sec].foes.forEach(f => spawnFoe(f, lvl.sec));
+      showHint('Участок зачищен! Барьер открыт →', 200);
+    } else { lvl.def.done(); }
+  }
+}
+
+// ---------------------------------------------------------------- cat ally
+function spawnCatAlly(x, y) { CAT = { x, y, w: 22, h: 56, face: 1, mode: 'idle', t: 0, cd: 120, p: 0, ally: true }; }
+function updateCatAlly() {
+  const c = CAT; c.t++;
+  const gy = surfaceTop(c.x + 11) - 56;
+  switch (c.mode) {
+    case 'idle': {
+      const want = P.x - P.face * 70;
+      if (Math.abs(want - c.x) > 40) { c.x += Math.sign(want - c.x) * 3.2; c.face = Math.sign(want - c.x); c.run = true; }
+      else c.run = false;
+      c.y = lerp(c.y, gy, .3);
+      let target = null, bd = 380;
+      for (const e of enemies) if (!e.dead && Math.abs(e.x - c.x) < bd) { bd = Math.abs(e.x - c.x); target = e; }
+      if (--c.cd <= 0 && target) { c.mode = 'leap'; c.p = 0; c.sx = c.x; c.sy = c.y; c.tg = target; c.face = Math.sign(target.x - c.x) || 1; }
+      break;
+    }
+    case 'leap': {
+      c.p += 1 / 26;
+      const e = c.tg;
+      c.x = lerp(c.sx, e.x - c.face * 14, c.p);
+      c.y = lerp(c.sy, e.y, c.p) - Math.sin(Math.PI * c.p) * 70;
+      if (c.p >= 1) {
+        if (!e.dead) { e.shield = false; e.lastPunch = -1; e.webbed = Math.max(e.webbed, 90); pop(e.x + e.w / 2, e.y - 14, 'МЯУ!', ROSE, 22); SFX.meow(); for (let i = 0; i < 3; i++) parts.push({ x: e.x + 4 + i * 8, y: e.y + 10, vx: 0, vy: 0, life: 14, max: 14, claw: true, color: '#fff', size: 18, grav: 0 }); e.hp -= 1; e.flash = 8; if (e.hp <= 0) knockOut(e, c.face); }
+        c.mode = 'back'; c.p = 0; c.sx = c.x; c.sy = c.y; c.tx = c.x - c.face * 110;
+      }
+      break;
+    }
+    case 'back':
+      c.p += 1 / 26;
+      c.x = lerp(c.sx, c.tx, c.p);
+      c.y = lerp(c.sy, surfaceTop(c.tx + 11) - 56, c.p) - Math.sin(Math.PI * c.p) * 60;
+      if (c.p >= 1) { c.mode = 'idle'; c.cd = 200 + Math.random() * 100; }
+      break;
+  }
+}
+
+// ============================================================ race
+const RACE_ROOFS = [[0, 600, 420], [700, 400, 380], [1200, 500, 410], [1850, 450, 390], [2450, 500, 360], [3080, 600, 410], [3800, 700, 400]];
+const RINGS = [[480, 330], [900, 270], [1450, 300], [1760, 240], [2250, 280], [2700, 230], [2990, 250], [3400, 300], [3950, 250], [4380, 320]];
+function startRace() {
+  mode = 'race'; hint = null;
+  solids = RACE_ROOFS.map(([x, w, t]) => K.roof(x, w, t));
+  enemies = []; webs = []; bullets = []; parts = []; pops = []; pickups = []; waves = []; KG = null;
+  P = newPlayer(80, 420 - 54);
+  const pts = [[60, 350], ...RINGS];
+  let total = 0; const segs = [];
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); total += d; }
+  race = { ring: 0, t: 0, pts, segs, total, dur: 60 * 27, catT: 0, over: false, started: false, count: 180 };
+  CAT = { x: 40, y: 350, w: 22, h: 56, face: 1, mode: 'leap', t: 0, p: 0 };
+  camMin = 0; camMax = 4500 - W; camX = 0;
+  state = 'play';
+  showHint(COARSE ? 'Пролети через все кольца раньше Кошки! ЛИАНА — качаться' : 'Пролети через все кольца раньше Кошки! L / Shift — качаться', 300);
+}
+function updateRace() {
+  const r = race;
+  if (r.count > 0) { r.count--; if (r.count % 60 === 0) SFX.sel(); if (r.count === 0) { SFX.good(); pop(W / 2, 200, 'ВПЕРЁД!', GOLD, 40); } }
+  if (r.count > 0) { P.vx = 0; return; }
+  r.t++;
+  // cat moves along the ring path
+  r.catT = Math.min(1, r.t / r.dur);
+  let dist = r.catT * r.total, i = 0;
+  while (i < r.segs.length - 1 && dist > r.segs[i]) { dist -= r.segs[i]; i++; }
+  const f = clamp(dist / r.segs[i], 0, 1), a = r.pts[i], b = r.pts[i + 1];
+  CAT.x = lerp(a[0], b[0], f) - 11; CAT.y = lerp(a[1], b[1], f) - Math.sin(Math.PI * f) * 50 - 28; CAT.face = 1; CAT.p = f; CAT.t++;
+  const cx = P.x + P.w / 2, cy = P.y + 26;
+  const rg = RINGS[r.ring];
+  if (rg && Math.hypot(cx - rg[0], cy - rg[1]) < 46) {
+    r.ring++; SFX.ring(); burst(rg[0], rg[1], GOLD, 12, 3, .02);
+    if (r.ring >= RINGS.length) { finishRace(true); return; }
+  }
+  if (r.catT >= 1) finishRace(false);
+}
+function finishRace(won) {
+  if (race.over) return;
+  race.over = true; raceWon = won;
+  pop(W / 2, 200, won ? 'ПОБЕДА!' : 'КОШКА БЫСТРЕЕ!', won ? GOLD : ROSE, 36);
+  if (won) addLove(0);
+  state = 'cut'; overT = 0;
+  cutDone = () => goCivil('roof42');
+}
+let cutDone = null;
+
+// ============================================================ kangaroo boss
+const KFY = 450;
+function startKBoss() {
+  mode = 'kboss'; hint = null;
+  solids = [K.roof(-100, W + 200, KFY), K.plat(140, 180, 330), K.plat(640, 180, 330)];
+  enemies = []; webs = []; bullets = []; parts = []; pops = []; pickups = []; waves = []; CAT = null;
+  P = newPlayer(120, KFY - 54);
+  KG = { x: 760, y: KFY - 58, w: 30, h: 58, vx: 0, vy: 0, face: -1, hp: 16, max: 16, state: 'idle', t: 0, flash: 0, lastPunch: -1, jumps: 0, stun: 0, stunHits: 0, onGround: true };
+  camMin = camMax = 0; camX = 0;
+  state = 'play';
+  showHint(COARSE ? 'Перепрыгивай ударные волны · ПАУТИНА в прыжке сбивает Кенгуру' : 'Перепрыгивай ударные волны · паутина (K) в прыжке сбивает Кенгуру', 380);
+}
+function kBox() { return { x: KG.x, y: KG.y, w: KG.w, h: KG.h }; }
+function updateKang() {
+  const k = KG; k.t++;
+  if (k.flash > 0) k.flash--;
+  const pcx = P.x + P.w / 2, kcx = k.x + k.w / 2;
+  switch (k.state) {
+    case 'idle':
+      k.vx *= .8; k.face = Math.sign(pcx - kcx) || k.face;
+      if (k.t > (k.jumps % 3 === 2 ? 12 : 42)) {
+        const tt = 46, tx = clamp(pcx - k.w / 2, 20, W - 50);
+        k.vy = -12.6; k.vx = (tx - k.x) / tt; k.state = 'air'; k.t = 0; k.jumps++;
+        SFX.boing(); if (Math.random() < .4) pop(kcx, k.y - 16, pick(['БОЙНГ!', 'ОП-ОП!', 'ХОП!']), '#e8b070', 20);
+      }
+      break;
+    case 'air':
+      if (k.vy > 0 && overlap(P, kBox()) && P.y > k.y) hurtPlayer(1, kcx);
+      break;
+    case 'stunned':
+      k.vx *= .85;
+      if (--k.stun <= 0) { k.state = 'idle'; k.t = 0; k.vy = -6; pop(kcx, k.y - 16, 'ВСТАЛ!', '#e8b070', 18); }
+      break;
+    case 'dead':
+      k.vx *= .9;
+      if (k.t === 60) say(S.kang_end, () => goCivil('roof_end'));
+      break;
+  }
+  k.vy += .55;
+  const wasAir = !k.onGround;
+  moveBody(k);
+  k.x = clamp(k.x, 0, W - k.w);
+  if (k.onGround && wasAir && k.state === 'air') {
+    k.state = 'idle'; k.t = 0; shake = 10; SFX.slam();
+    burst(kcx, k.y + k.h, '#c8a878', 14, 4);
+    if (k.ground && k.ground.kind === 'roof') waves.push({ x: kcx, dir: -1, life: 120 }, { x: kcx, dir: 1, life: 120 });
+  }
+}
+function webKang() {
+  const k = KG;
+  if (k.state === 'dead' || k.state === 'stunned') return;
+  k.state = 'stunned'; k.stun = k.onGround ? 110 : 160; k.stunHits = 0; k.vx = 0;
+  pop(k.x + 15, k.y - 16, 'ЗАПУТАЛСЯ!', '#fff', 24); SFX.hit();
+}
+function punchKang() {
+  const k = KG;
+  if (k.state === 'dead') return;
+  const dmg = k.state === 'stunned' ? 2 : 1;
+  k.hp = Math.max(0, k.hp - dmg); k.flash = 10; shake = 5; SFX.hit();
+  burst(k.x + 15, k.y + 20, '#fff2a8', 8, 4);
+  pop(k.x + 15, k.y - 12, pick(['БАМ!', 'ТРЕСЬ!', 'ХРЯСЬ!']), GOLD, 26);
+  if (k.hp <= 0) { k.state = 'dead'; k.t = 0; pop(k.x + 15, k.y - 40, 'НОКАУТ!', GOLD, 34); stats.kos++; return; }
+  if (k.state === 'stunned') { if (++k.stunHits >= 3) { k.state = 'air'; k.vy = -10; k.vx = -P.face * -4; k.onGround = false; } }
+  else { k.state = 'air'; k.vy = -8; k.vx = P.face * 5; k.onGround = false; }
+}
+
+// ============================================================ calibration minigame
+function startCalib(level, cb) {
+  calib = { level, tries: 0, hits: 0, max: 5, t: 0, ang: 0, zone: 0, width: level === 1 ? .38 : .26, speed: level === 1 ? .045 : .066, res: null, resT: 0, cb, jerk: 0, phase: Math.random() * 6 };
+  newZone();
+  state = 'calib';
+}
+function newZone() { calib.zone = (Math.random() * 2 - 1) * 1.0; }
+function updateCalib() {
+  const c = calib; c.t++;
+  if (c.resT > 0) {
+    c.resT--;
+    if (c.resT === 0) {
+      if (c.tries >= c.max) { const cb = c.cb, h = c.hits; calib = null; cb(h); return; }
+      newZone();
+    }
+    return;
+  }
+  c.phase += c.speed;
+  let a = Math.sin(c.phase) * 1.25;
+  if (c.level === 2 && (c.tries === 2 || c.tries === 3)) {
+    if (--c.jerk <= 0) { c.jerk = 40 + Math.random() * 40; c.kick = (Math.random() - .5) * .9; }
+    a = clamp(a + (c.kick || 0) * Math.max(0, (c.jerk - 20) / 20), -1.3, 1.3);
+  }
+  c.ang = a;
+  if (pressed.punch || pressed.ok || pressed.jump) {
+    const ok = Math.abs(c.ang - c.zone) < c.width / 2;
+    c.tries++; if (ok) c.hits++;
+    c.res = ok; c.resT = 40;
+    ok ? SFX.good() : SFX.bad();
+  }
+}
+function drawCalib() {
+  const c = calib;
+  ctx.fillStyle = 'rgba(5,4,14,.8)'; ctx.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = 330, R = 190;
+  ctx.fillStyle = '#1a1830'; ctx.beginPath(); ctx.arc(cx, cy, R + 20, Math.PI, 0); ctx.fill();
+  ctx.lineWidth = 26;
+  ctx.strokeStyle = '#3a2a4a'; ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI + .25, -.25); ctx.stroke();
+  const za = -Math.PI / 2 + c.zone, zw = c.width;
+  ctx.strokeStyle = '#4fdc7a'; ctx.beginPath(); ctx.arc(cx, cy, R, za - zw / 2, za + zw / 2); ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#6a5a8a';
+  for (let i = -6; i <= 6; i++) { const a = -Math.PI / 2 + i * .2; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * (R - 22), cy + Math.sin(a) * (R - 22)); ctx.lineTo(cx + Math.cos(a) * (R - 32), cy + Math.sin(a) * (R - 32)); ctx.stroke(); }
+  const na = -Math.PI / 2 + c.ang;
+  ctx.strokeStyle = c.resT > 0 ? (c.res ? '#4fdc7a' : '#ff4d5e') : '#ffd84a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(na) * (R + 6), cy + Math.sin(na) * (R + 6)); ctx.stroke();
+  ctx.fillStyle = '#c9b24a'; circle(cx, cy, 12);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `20px ${F_DISP}`; ctx.fillStyle = '#efe9ff';
+  ctx.fillText(c.level === 1 ? 'КАЛИБРОВКА МАГНИТНОГО ПОЛЯ' : 'ДЕМОНСТРАЦИЯ: УДЕРЖАНИЕ ПОЛЯ', cx, 60);
+  ctx.font = `20px ${F_TALK}`; ctx.fillStyle = '#cfc7f2';
+  ctx.fillText(COARSE ? 'Жми УДАР, когда стрелка в зелёной зоне' : 'Жми J, Enter или Пробел, когда стрелка в зелёной зоне', cx, 96);
+  for (let i = 0; i < c.max; i++) {
+    const x = cx - (c.max - 1) * 22 + i * 44;
+    ctx.fillStyle = i < c.tries ? '#2a2440' : '#3a3458'; circle(x, 380, 14);
+    if (i < c.tries) { ctx.fillStyle = '#efe9ff'; ctx.fillText('·', x, 380); }
+  }
+  ctx.font = `22px ${F_DISP}`; ctx.fillStyle = '#4fdc7a'; ctx.fillText(`${c.hits} / ${c.max}`, cx, 430);
+  if (c.resT > 0) { ctx.font = `30px ${F_DISP}`; ctx.fillStyle = c.res ? '#4fdc7a' : '#ff4d5e'; ctx.fillText(c.res ? 'СТАБИЛЬНО!' : 'СБОЙ!', cx, 250); }
+  if (c.level === 2 && (c.tries === 2 || c.tries === 3) && c.resT === 0) { ctx.font = `18px ${F_TALK}`; ctx.fillStyle = '#e8d24a'; ctx.fillText('Руки доктора дёргают рубильник сами?..', cx, 480); }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+// ============================================================ credits
+const CREDITS = [
+  ['ЧЕЛОВЕК-ПАУК 3', 'title'], ['ДВОЙНАЯ ЖИЗНЬ', 'sub'], ['', ''],
+  ['Питер Паркер / Человек-паук', 'role'], ['Фелиция Харди / Чёрная Кошка', 'role'], ['Тётя Мэй', 'role'],
+  ['Дж. Джона Джеймсон, который всё ещё требует подстричься', 'role'], ['Доктор Отто Октавиус', 'role'],
+  ['Рози Октавиус', 'role'], ['Норман Осборн, Рейвенкрофт, камера 7', 'role'], ['Квентин Бек, камера 8, «гримёрка»', 'role'],
+  ['Кенгуру, прыгавший изо всех сил', 'role'], ['', ''], ['Спасибо, что прожили эту неделю вместе с Питером', 'sub'],
+];
+function startCredits() { state = 'credits'; credits = { t: 0 }; }
+function drawCredits() {
+  ctx.fillStyle = '#06050f'; ctx.fillRect(0, 0, W, H);
+  const y0 = H + 20 - credits.t * .9;
+  ctx.textAlign = 'center';
+  CREDITS.forEach(([t, k], i) => {
+    const y = y0 + i * 44;
+    if (y < -40 || y > H + 40) return;
+    ctx.font = k === 'title' ? `38px ${F_DISP}` : k === 'sub' ? `22px ${F_DISP}` : `22px ${F_TALK}`;
+    ctx.fillStyle = k === 'title' ? RED : k === 'sub' ? ROSE : '#cfc7f2';
+    ctx.fillText(t, W / 2, y);
+  });
+  ctx.font = `20px ${F_TALK}`; ctx.fillStyle = '#ff9ab0';
+  if (y0 + CREDITS.length * 44 < H / 2) ctx.fillText(`Сердец украдено: ${love}`, W / 2, H / 2 + 40);
+  ctx.textAlign = 'left';
+}
+
+// ============================================================ update
+function update() {
+  frame++;
+  if (pressed.mute) { muted = !muted; syncMute(); }
+  if (fadeA > 0 && state !== 'fade') fadeA = Math.max(0, fadeA - 1 / 24);
+  if (hint && hint.t > 0 && state === 'play') hint.t--;
+  if (chipBlink > 0) chipBlink--;
+  switch (state) {
+    case 'title': {
+      const jump = { '#ch1': 1, '#ch2': 2, '#ch3': 3, '#ch4': 4, '#ch5': 5 }[location.hash];
+      if (jump && (pressed.ok || pressed.jump)) { newGame(); startChapter(jump); tap = null; return; }
+      if (menuSave && menuSave.ch > 0) {
+        if (pressed.ok || pressed.jump) { newGame(); love = menuSave.love || 0; startChapter(menuSave.ch); }
+        else if (pressed.punch) { clearSave(); newGame(); startChapter(0); }
+      } else if (pressed.ok || pressed.jump || pressed.punch) { newGame(); startChapter(0); }
+      tap = null;
+      return;
+    }
+    case 'card':
+      card.t++;
+      if ((card.t > 40 && (pressed.ok || pressed.jump || pressed.punch)) || card.t > 300) { const go = card.go; card = null; go(); }
+      tap = null; return;
+    case 'dialog': updateDialog(); updateFx(); tap = null; return;
+    case 'calib': updateCalib(); tap = null; return;
+    case 'cut': overT++; updateFx(); if (overT > 90) { const d = cutDone; cutDone = null; state = 'play'; d && d(); } return;
+    case 'fade':
+      fadeA += 1 / 24;
+      if (fadeA >= 1) { fadeA = 1; const cb = fadeCb; fadeCb = null; state = 'play'; cb && cb(); }
+      return;
+    case 'pause': if (pressed.pause || pressed.ok) state = 'play'; tap = null; return;
+    case 'over':
+      overT++; updateFx();
+      if (overT > 40 && (pressed.ok || pressed.jump || pressed.punch)) { if (mode === 'fight') startFight(lvl.id, lvl.ck); else startKBoss(); }
+      tap = null; return;
+    case 'credits':
+      credits.t++;
+      if (credits.t > 900 || (credits.t > 60 && (pressed.ok || pressed.jump))) startCivil('post');
+      tap = null; return;
+    case 'tbc':
+      overT++;
+      if (overT > 90 && (pressed.ok || pressed.jump)) { clearSave(); menuSave = null; state = 'title'; mode = null; }
+      tap = null; return;
+  }
+  tap = null;
+  if (pressed.pause) { state = 'pause'; return; }
+  if (mode === 'civil') { updateCivil(); updateFx(); return; }
+  stats.time++;
+  if (mode === 'race') { updatePlayer(); updateWebs(); updateRace(); updateFx(); updateCamera(); return; }
+  updatePlayer();
+  updateEnemies();
+  updateWebs();
+  updateBullets();
+  if (KG) updateKang();
+  if (CAT && CAT.ally) updateCatAlly();
+  updateWaves();
+  updatePickups();
+  updateFx();
+  updateCamera();
+  if (mode === 'fight') checkProgress();
+}
+function newGame() { love = 0; stats = { kos: 0, time: 0, hits: 0 }; raceWon = false; }
+
+// ---------------------------------------------------------------- physics
+function blocksH(k) { return k.kind === 'roof' || k.kind === 'block' || (k.kind === 'barrier' && k.active); }
+function moveBody(b) {
+  b.wallHit = false;
+  b.x += b.vx;
+  for (const k of solids) {
+    if (!blocksH(k)) continue;
+    if (b.x < k.x + k.w && b.x + b.w > k.x && b.y < k.bot && b.y + b.h > k.top) {
+      if (b.vx > 0) b.x = k.x - b.w; else if (b.vx < 0) b.x = k.x + k.w;
+      b.vx = 0; b.wallHit = true;
+    }
+  }
+  b.onGround = false;
+  const prevBot = b.y + b.h;
+  b.y += b.vy;
+  for (const k of solids) {
+    if (k.kind === 'plat') {
+      if (b.vy >= 0 && prevBot <= k.top + .01 && b.y + b.h >= k.top && b.x + b.w > k.x + 2 && b.x < k.x + k.w - 2) { b.y = k.top - b.h; b.vy = 0; b.onGround = true; b.ground = k; }
+      continue;
+    }
+    if (!blocksH(k)) continue;
+    if (b.x < k.x + k.w && b.x + b.w > k.x && b.y < k.bot && b.y + b.h > k.top) {
+      if (b.vy > 0) { b.y = k.top - b.h; b.vy = 0; b.onGround = true; b.ground = k; }
+      else if (b.vy < 0) { b.y = k.bot; b.vy = 0; }
+    }
+  }
+}
+function solidAt(x, y) { for (const k of solids) if (blocksH(k) && x >= k.x && x <= k.x + k.w && y >= k.top && y <= k.bot) return k; return null; }
+function standAt(x, y) {
+  for (const k of solids) {
+    if (x < k.x || x > k.x + k.w) continue;
+    if (k.kind === 'plat' && y >= k.top - 2 && y <= k.top + 14) return k;
+    if ((k.kind === 'roof' || k.kind === 'block') && y >= k.top - 2 && y <= k.bot) return k;
+  }
+  return null;
+}
+function hurtPlayer(dmg, fromX, knock = true) {
+  const p = P;
+  if (p.inv > 0 || state !== 'play') return;
+  p.hp -= dmg; p.inv = 80; p.hurtT = 16; stats.hits++;
+  if (p.swing) p.swing = null;
+  if (knock) { p.vx = Math.sign(p.x + p.w / 2 - fromX || 1) * 5; p.vy = -5; }
+  shake = 8; SFX.hurt();
+  burst(p.x + p.w / 2, p.y + 20, '#ff4d5e', 12, 4);
+  if (p.hp <= 0) { p.hp = 0; state = 'over'; overT = 0; }
+}
+function attach() {
+  const p = P, cx = p.x + p.w / 2, cy = p.y + 10;
+  const dir = Math.abs(p.vx) > 1 ? Math.sign(p.vx) : p.face;
+  const ax = cx + dir * 150, ay = Math.max(20, cy - 230);
+  p.swing = { x: ax, y: ay, len: Math.hypot(ax - cx, ay - cy), t: 0 };
+  p.face = dir; SFX.web();
+}
+function release(jumped) {
+  const p = P; if (!p.swing) return;
+  p.swing = null;
+  p.vx = clamp(p.vx * 1.15, -12, 12);
+  p.vy = jumped ? Math.min(p.vy, 0) - 7 : p.vy - 2.5;
+  p.flung = true;
+}
+function updatePlayer() {
+  const p = P;
+  const inX = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  const frozen = mode === 'race' && race.count > 0;
+  if (p.inv > 0) p.inv--;
+  if (p.punchCd > 0) p.punchCd--;
+  if (p.punchT > 0) p.punchT--;
+  if (p.webCd > 0) p.webCd--;
+  if (p.shootT > 0) p.shootT--;
+  if (p.hurtT > 0) p.hurtT--;
+  const ctl = p.hurtT <= 0 && !frozen;
+  if (ctl && inX && !p.swing) p.face = inX;
+  if (p.onGround) p.coyote = 6; else if (p.coyote > 0) p.coyote--;
+  if (ctl && pressed.jump) {
+    if (p.swing) release(true);
+    else if (p.coyote > 0) { p.vy = -12.2; p.coyote = 0; p.onGround = false; p.flung = false; SFX.jump(); }
+  }
+  if (ctl && pressed.swing && !p.swing) {
+    if (p.onGround) { p.vy = -10.5; p.onGround = false; p.coyote = 0; p.swingWant = 9; p.flung = true; SFX.jump(); }
+    else attach();
+  }
+  if (p.swingWant > 0) { p.swingWant--; if (p.swingWant === 0 && keys.swing && !p.onGround && !p.swing) attach(); }
+  if (p.swing && !keys.swing) release(false);
+  if (ctl && pressed.punch && p.punchCd <= 0) { p.punchT = 14; p.punchCd = 20; p.punchId++; SFX.punch(); }
+  if (ctl && pressed.web && p.webCd <= 0 && mode !== 'race') {
+    webs.push({ x: p.x + p.w / 2 + p.face * 16, y: p.y + 16, vx: p.face * 12.5 + p.vx * .3, life: 40 });
+    p.webCd = 26; p.shootT = 14; SFX.web();
+  }
+  let nvx = p.vx, nvy = p.vy;
+  if (p.swing) {
+    const s = p.swing, cx = p.x + p.w / 2, cy = p.y + 10;
+    nvy += .5; nvx += inX * .2;
+    let nx = cx + nvx, ny = cy + nvy;
+    const dx = nx - s.x, dy = ny - s.y, d = Math.hypot(dx, dy);
+    s.len = Math.max(100, s.len - .5);
+    if (d > s.len) { nx = s.x + dx / d * s.len; ny = s.y + dy / d * s.len; nvx = nx - cx; nvy = ny - cy; }
+    const sp = Math.hypot(nvx, nvy);
+    if (sp > 13) { nvx *= 13 / sp; nvy *= 13 / sp; }
+    if (Math.abs(nvx) > .5) p.face = Math.sign(nvx);
+    if (++s.t > 220) release(false);
+  } else {
+    if (p.onGround) { const tgt = ctl ? inX * 4.4 : 0; nvx += clamp(tgt - nvx, -.8, .8); }
+    else {
+      if (ctl && inX && (Math.sign(inX) !== Math.sign(nvx) || Math.abs(nvx) < 4.4)) nvx += inX * .35;
+      nvx *= .993;
+    }
+    nvy += .55;
+    if (!keys.jump && nvy < -3 && !p.flung) nvy += .45;
+    if (nvy > 14) nvy = 14;
+  }
+  p.vx = nvx; p.vy = nvy;
+  moveBody(p);
+  if (p.swing && (p.onGround || p.wallHit)) p.swing = null;
+  if (p.onGround) p.flung = false;
+  const maxX = mode === 'kboss' ? W - p.w : mode === 'race' ? 4500 - p.w : lvl.def.len - p.w;
+  if (p.x < 0) { p.x = 0; p.vx = 0; if (p.swing) p.swing = null; }
+  if (p.x > maxX) { p.x = maxX; p.vx = 0; if (p.swing) p.swing = null; }
+  p.anim += p.onGround ? Math.abs(p.vx) * .09 : .1;
+  if (p.onGround && p.ground && p.ground.kind !== 'plat' && p.x > p.ground.x + 30 && p.x + p.w < p.ground.x + p.ground.w - 30) p.lastSafe = { x: p.x, y: p.y };
+  if (p.y > H + 60) {
+    if (mode !== 'race') { p.inv = 0; hurtPlayer(1, p.x, false); }
+    p.x = p.lastSafe.x; p.y = p.lastSafe.y - 4; p.vx = 0; p.vy = 0; p.swing = null;
+    if (state === 'play') pop(p.x + 12, p.y - 20, 'ОЙ!', '#ff8a8a');
+  }
+  if (p.punchT >= 4 && p.punchT <= 10) {
+    const hb = { x: p.face > 0 ? p.x + p.w - 4 : p.x - 40, y: p.y + 6, w: 44, h: 32 };
+    for (const e of enemies) if (!e.dead && e.lastPunch !== p.punchId && overlap(hb, e)) { e.lastPunch = p.punchId; hitEnemy(e); }
+    if (KG && KG.lastPunch !== p.punchId && overlap(hb, kBox())) { KG.lastPunch = p.punchId; punchKang(); }
+  }
+}
+
+// ---------------------------------------------------------------- enemies
+function knockOut(e, dir) {
+  const cx = e.x + e.w / 2;
+  e.dead = true; e.webbed = 0; stats.kos++;
+  shake = 6; SFX.hit();
+  e.vy = -8; e.vx = (dir || P.face) * 6;
+  pop(cx, e.y - 10, pick(['БАМ!', 'ХРЯСЬ!', 'ПАУ!', 'БУМ!', 'ТРЕСЬ!']), GOLD, 30);
+}
+function hitEnemy(e) {
+  const cx = e.x + e.w / 2, cy = e.y + 18;
+  if (e.type === 'brute' && e.shield && e.webbed <= 0 && Math.sign(P.x + P.w / 2 - cx) === e.face) {
+    pop(cx, e.y - 8, 'ДЗЫНЬ!', '#cfe8ff', 22); SFX.clank(); P.vx = -P.face * 4; e.flash = 3; return;
+  }
+  let dmg = 1;
+  if (e.webbed > 0) dmg = e.type === 'brute' ? 2 : 99;
+  e.hp -= dmg; e.flash = 8;
+  burst(cx, cy, '#fff2a8', 8, 4);
+  if (e.hp <= 0) { knockOut(e); return; }
+  e.vx = P.face * (e.type === 'brute' ? 2 : 5); e.stagger = e.type === 'brute' ? 8 : 14; e.atk = 0;
+  pop(cx, e.y - 6, pick(['ТУЦ!', 'БАЦ!']), '#ffffff', 20);
+  SFX.hit(); shake = 3;
+}
+function webEnemy(e) {
+  if (e.webbed > 0) return false;
+  e.webbed = e.type === 'brute' ? 220 : 260; e.stagger = 0; e.atk = 0;
+  if (e.type === 'brute' && e.shield) { e.shield = false; pop(e.x + e.w / 2, e.y - 24, 'ЩИТ ВЫБИТ!', '#cfe8ff', 20); SFX.clank(); }
+  pop(e.x + e.w / 2, e.y - 8, 'ШВЫРК!', '#ffffff', 20);
+  return true;
+}
+function secBounds(e) { return [secX0(e.sec) + 30, secX1(e.sec) - 30]; }
+function updateEnemies() {
+  const pcx = P.x + P.w / 2;
+  for (const e of enemies) {
+    if (e.flash > 0) e.flash--;
+    if (e.dead) { e.vy += .5; e.x += e.vx; e.y += e.vy; e.rot += .22 * Math.sign(e.vx || 1); if (e.y > H + 300) e.gone = true; continue; }
+    const ecx = e.x + e.w / 2, dx = pcx - ecx, ad = Math.abs(dx), dy = Math.abs((P.y + P.h) - (e.y + e.h));
+    if (e.cd > 0) e.cd--;
+    if (e.aim > 0) e.aim--;
+    e.t--;
+    const sees = ad < 290 && dy < 80;
+    if (e.webbed > 0) { e.webbed--; e.vx *= .8; e.atk = 0; }
+    else if (e.stagger > 0) { e.stagger--; e.vx *= .85; }
+    else if (e.type === 'thug') {
+      if (e.atk > 0) { e.atk--; e.vx = 0; if (e.atk === 8 && ad < 54 && dy < 40 && Math.sign(dx) === e.face) hurtPlayer(1, ecx); }
+      else if (sees) { e.face = Math.sign(dx) || e.face; if (ad > 34) e.vx = e.face * 2.3; else { e.vx = 0; if (e.cd <= 0) { e.atk = 26; e.cd = 70; } } }
+      else { if (e.t <= 0) { e.face *= -1; e.t = 90 + Math.random() * 90; } e.vx = e.face * .9; }
+    } else if (e.type === 'gunner') {
+      e.vx = 0;
+      if (ad < 540) e.face = Math.sign(dx) || e.face;
+      if (e.cd <= 0 && ad < 500 && ad > 30 && Math.abs(P.y - e.y) < 140) { bullets.push({ x: ecx + e.face * 22, y: e.y + 20, vx: e.face * 5.2, life: 150, tray: e.pal === 'inmate' }); e.cd = 120; e.aim = 14; SFX.shot(); }
+    } else if (e.type === 'brute') {
+      if (e.atk > 0) {
+        e.atk--; e.vx = 0;
+        if (e.atk === 10) { shake = 8; SFX.slam(); burst(ecx + e.face * 30, e.y + e.h, '#b8a88a', 12, 4); if (ad < 80 && dy < 50) hurtPlayer(1, ecx); }
+      } else if (sees) {
+        if (!(e.shield && ad < 60)) e.face = Math.sign(dx) || e.face;
+        if (ad > 52) e.vx = e.face * 1.3; else { e.vx = 0; if (e.cd <= 0) { e.atk = 38; e.cd = 90; } }
+      } else { if (e.t <= 0) { e.face *= -1; e.t = 120 + Math.random() * 90; } e.vx = e.face * .6; }
+    }
+    if (e.vx !== 0 && e.onGround) {
+      const ahead = ecx + Math.sign(e.vx) * (e.w / 2 + 4);
+      if (!standAt(ahead, e.y + e.h + 2)) { e.vx = 0; if (!sees && e.stagger <= 0) e.face *= -1; }
+    }
+    const [lo, hi] = secBounds(e);
+    if (e.x < lo - 20 && e.vx < 0) e.vx = 0;
+    if (e.x + e.w > hi + 20 && e.vx > 0) e.vx = 0;
+    e.anim += Math.abs(e.vx) * .12;
+    e.vy += .55;
+    moveBody(e);
+    if (e.y > H + 40) { e.dead = true; e.gone = true; stats.kos++; }
+  }
+  enemies = enemies.filter(e => !e.gone);
+}
+function updateWebs() {
+  for (const w of webs) {
+    w.x += w.vx; w.life--;
+    const box = { x: w.x - 9, y: w.y - 7, w: 18, h: 14 };
+    for (const e of enemies) if (!e.dead && overlap(box, e) && webEnemy(e)) { w.life = 0; burst(w.x, w.y, '#ffffff', 8, 3, .05); break; }
+    if (w.life > 0) for (const b of bullets) if (b.life > 0 && Math.abs(b.x - w.x) < 14 && Math.abs(b.y - w.y) < 14) { b.life = 0; w.life = 0; }
+    if (w.life > 0 && KG && overlap(box, kBox())) { w.life = 0; webKang(); }
+    if (w.life > 0 && solidAt(w.x, w.y)) { w.life = 0; burst(w.x, w.y, '#ffffff', 4, 2, .05); }
+  }
+  webs = webs.filter(w => w.life > 0);
+}
+function updateBullets() {
+  for (const b of bullets) {
+    b.x += b.vx; b.life--;
+    if (overlap({ x: b.x - 4, y: b.y - 2, w: 8, h: 4 }, P)) { hurtPlayer(1, b.x - b.vx * 5); b.life = 0; }
+    if (solidAt(b.x, b.y)) b.life = 0;
+  }
+  bullets = bullets.filter(b => b.life > 0);
+}
+function updateWaves() {
+  const pcx = P.x + P.w / 2;
+  for (const w of waves) {
+    w.x += w.dir * 6.5; w.life--;
+    if (Math.abs(w.x - pcx) < 16 && P.onGround && P.ground && P.ground.kind === 'roof') hurtPlayer(1, w.x);
+  }
+  waves = waves.filter(w => w.life > 0 && w.x > -40 && w.x < W + 40);
+}
+function updatePickups() {
+  for (const k of pickups) if (!k.got && overlap(P, { x: k.x - 14, y: k.y - 10, w: 28, h: 24 })) { k.got = true; if (P.hp < P.max) P.hp++; pop(k.x, k.y - 16, '+1 ХОТ-ДОГ', GOLD, 18); SFX.pick(); }
+  pickups = pickups.filter(k => !k.got);
+}
+function updateFx() {
+  for (const q of parts) { q.x += q.vx; q.y += q.vy; q.vy += q.grav; q.vx *= .97; q.life--; }
+  parts = parts.filter(q => q.life > 0);
+  for (const q of pops) { q.y -= .6; q.life--; }
+  pops = pops.filter(q => q.life > 0);
+  shake = shake > .5 ? shake * .85 : 0;
+  if (lvl && mode === 'fight') for (const b of lvl.barriers) if (b) b.fade = lerp(b.fade, b.active ? 1 : 0, .06);
+}
+function updateCamera() {
+  if (mode === 'kboss') { camX = 0; return; }
+  const lead = P.swing ? P.vx * 10 : P.vx * 6;
+  camX = lerp(camX, clamp(P.x - W * .38 + lead, camMin, camMax), .1);
+}
+
+// ============================================================ drawing: primitives and characters
+function limb(x1, y1, x2, y2, w, color) { ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+function limb3(x1, y1, x2, y2, x3, y3, w, c1, c2) { limb(x1, y1, x2, y2, w, c1); limb(x2, y2, x3, y3, w * .9, c2 || c1); }
+function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); ctx.fill(); }
+
+function humanHead(o) {
+  const hc = o.hairC;
+  ctx.fillStyle = hc;
+  if (o.hair === 'long' || o.hair === 'longwhite') {
+    ctx.beginPath(); ctx.moveTo(6, -9); ctx.bezierCurveTo(-8, -15, -17, -4, -15, 8); ctx.bezierCurveTo(-14, 20, -19, 27, -11, 31); ctx.bezierCurveTo(-6, 22, -4, 14, -3, 6); ctx.fill();
+  }
+  if (o.hair === 'bun') circle(-8, -8, 5);
+  ctx.fillStyle = o.skin;
+  ctx.fillRect(-3, 6, 6, 6);
+  ctx.beginPath(); ctx.ellipse(1, 0, 8, 9.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-4.5, 0, 2, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.moveTo(8.5, -1); ctx.lineTo(11, 3); ctx.lineTo(8, 3.5); ctx.fill();
+  if (o.hair === 'mask') {
+    ctx.fillStyle = '#16171c'; ctx.beginPath(); ctx.ellipse(1, -1, 8.6, 10.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = o.skin; ctx.fillRect(2, -4, 8, 4);
+    ctx.fillStyle = '#111'; ctx.fillRect(5, -3, 2, 2);
+    return;
+  }
+  ctx.fillStyle = '#26201c'; ctx.fillRect(4.6, -2.6, 2, 2.3);
+  ctx.fillStyle = o.hair === 'longwhite' || o.hairC === '#dcdcdc' || o.hairC === '#c8c8c8' ? '#8a8078' : hc;
+  ctx.fillRect(3.4, -5.2, 4.4, 1.3);
+  if (o.lips) { ctx.fillStyle = '#c8203a'; ctx.beginPath(); ctx.ellipse(6.4, 5, 2.1, 1.1, 0, 0, Math.PI * 2); ctx.fill(); }
+  else { ctx.fillStyle = '#8a4a3a'; ctx.fillRect(4.6, 5, 3.4, 1); }
+  if (o.beard) { ctx.fillStyle = o.beard; ctx.beginPath(); ctx.moveTo(-3, 3); ctx.quadraticCurveTo(0, 13, 6, 11); ctx.quadraticCurveTo(10, 9, 9, 5); ctx.lineTo(5, 6.5); ctx.quadraticCurveTo(0, 7, -3, 3); ctx.fill(); }
+  if (o.mustache) { ctx.fillStyle = o.mustache; ctx.fillRect(3, 3, 7.5, 2.2); }
+  ctx.fillStyle = hc;
+  switch (o.hair) {
+    case 'messy': ctx.beginPath(); ctx.moveTo(-8, 2); ctx.quadraticCurveTo(-10, -10, -2, -11); ctx.lineTo(0, -14); ctx.lineTo(3, -11); ctx.lineTo(7, -13); ctx.lineTo(8, -9); ctx.quadraticCurveTo(10.5, -6, 9.5, -4); ctx.quadraticCurveTo(3, -8, -4, -5); ctx.quadraticCurveTo(-6, -2, -6, 2); ctx.fill(); break;
+    case 'short': ctx.beginPath(); ctx.ellipse(0.5, -4.5, 8.6, 6, 0, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(-8, -5, 3, 6); break;
+    case 'flattop': ctx.fillRect(-7, -14, 15, 8); ctx.fillRect(-8.5, -8, 4, 8); break;
+    case 'bob': ctx.beginPath(); ctx.moveTo(-9, 7); ctx.quadraticCurveTo(-11, -12, 2, -11); ctx.quadraticCurveTo(10, -10, 10, -4); ctx.quadraticCurveTo(4, -7, 0, -6); ctx.quadraticCurveTo(-4, -4, -4, 7); ctx.fill(); break;
+    case 'bun': ctx.beginPath(); ctx.ellipse(0, -5, 9, 6, 0, Math.PI, Math.PI * 2); ctx.fill(); break;
+    case 'bowl': ctx.beginPath(); ctx.moveTo(-9, 2); ctx.quadraticCurveTo(-9.5, -13, 2, -12); ctx.quadraticCurveTo(10, -11, 10, -4); ctx.lineTo(-3, -4.5); ctx.lineTo(-4, 2); ctx.fill(); break;
+    case 'spiky': ctx.beginPath(); ctx.moveTo(-8, 2); ctx.lineTo(-10, -6); ctx.lineTo(-6, -9); ctx.lineTo(-7, -15); ctx.lineTo(-1, -11); ctx.lineTo(2, -17); ctx.lineTo(5, -11); ctx.lineTo(10, -12); ctx.lineTo(9, -5); ctx.quadraticCurveTo(2, -8, -4, -4); ctx.lineTo(-5, 2); ctx.fill(); break;
+    case 'slick': ctx.beginPath(); ctx.moveTo(-8, 1); ctx.quadraticCurveTo(-9, -12, 3, -11); ctx.quadraticCurveTo(10, -10, 9, -5); ctx.quadraticCurveTo(2, -9, -5, -4); ctx.lineTo(-5, 1); ctx.fill(); break;
+    case 'long': case 'longwhite': ctx.beginPath(); ctx.moveTo(-8, 4); ctx.bezierCurveTo(-8, -14, 8, -14, 11, -5); ctx.bezierCurveTo(4, -9, -2, -7, -4, 3); ctx.fill(); break;
+    case 'cap': ctx.fillStyle = hc; ctx.fillRect(-8, -12, 17, 6); ctx.fillRect(4, -7.5, 9, 2); ctx.fillStyle = GOLD; ctx.fillRect(1, -11, 3, 3); break;
+    case 'beanie': ctx.beginPath(); ctx.arc(1, -3, 9.5, Math.PI, 0); ctx.fill(); ctx.fillRect(-9, -5, 20, 3); break;
+    case 'hat': ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-9, -8, 21, 2.5); ctx.fillRect(-5, -15, 13, 8); ctx.fillStyle = '#8a2a3a'; ctx.fillRect(-5, -10, 13, 2); break;
+  }
+  if (o.glasses) { ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(5.6, -1.6, 2.9, 0, Math.PI * 2); ctx.moveTo(2.7, -1.6); ctx.lineTo(-4, -2); ctx.stroke(); }
+  if (o.goggles) {
+    ctx.fillStyle = '#16161a'; circle(5.6, -1.8, 3.4);
+    ctx.fillStyle = 'rgba(140,210,255,.45)'; circle(6.4, -2.6, 1.2);
+    ctx.strokeStyle = '#16161a'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(2.3, -2); ctx.lineTo(-7, -3); ctx.stroke();
+  }
+  if (o.earring) { ctx.fillStyle = '#ffffff'; circle(-4.5, 4, 1.2); }
+  if (o.cigar) {
+    ctx.fillStyle = '#6b4a2a'; ctx.fillRect(8, 4.5, 7, 2.2);
+    ctx.fillStyle = frame % 30 < 15 ? '#ff6a2a' : '#c84a1a'; ctx.fillRect(15, 4.5, 1.5, 2.2);
+  }
+}
+
+function ottoArmsDraw(face, modeA, t) {
+  const bases = [[-6, -46], [-4, -42], [-8, -38], [-5, -34]];
+  bases.forEach(([bx, by], i) => {
+    const ph = t * .04 + i * 1.6;
+    let tx, ty;
+    if (modeA === 'cobra') { tx = -10 + (i - 1.5) * 26; ty = -110 - (i % 2) * 14 + Math.sin(ph * 2) * 4; }
+    else if (modeA === 'rise') { tx = -24 + (i - 1.5) * 18; ty = -86 + Math.sin(ph) * 8; }
+    else { tx = -26 - (i % 2) * 10 + Math.sin(ph) * 8; ty = -70 + i * 14 + Math.cos(ph) * 6; }
+    const mx = (bx + tx) / 2 - 16, my = (by + ty) / 2 + 10;
+    ctx.strokeStyle = '#5a5e68'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(mx, my, tx, ty); ctx.stroke();
+    ctx.fillStyle = '#8a8e98';
+    for (let s = 0; s <= 1; s += .2) { const u = 1 - s; circle(u * u * bx + 2 * u * s * mx + s * s * tx, u * u * by + 2 * u * s * my + s * s * ty, 2.6); }
+    ctx.fillStyle = '#3a3e48'; circle(tx, ty, 5);
+    ctx.strokeStyle = '#9aa0aa'; ctx.lineWidth = 2;
+    for (let c = -1; c <= 1; c++) { const a = -Math.PI / 2 + c * .7 + (modeA === 'cobra' ? 0 : .3); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(a) * 8, ty + Math.sin(a) * 8); ctx.stroke(); }
+    ctx.fillStyle = modeA === 'cobra' ? '#ff4d3a' : '#e8d24a'; circle(tx, ty, 1.8);
+  });
+}
+
+function drawPerson(x, fy, face, o, st = {}) {
+  ctx.save(); ctx.translate(x, fy); ctx.scale(face, 1);
+  const tw = o.build === 'heavy' ? 11 : o.build === 'slim' ? 7 : 8.5;
+  const a = st.walk ? Math.sin(st.anim) * .8 : 0;
+  const pants = o.pants || '#2a2a3a', shoe = '#241a14';
+  const top = o.shirt || o.dress;
+  if (o.harness && st.arms !== false) ottoArmsDraw(face, st.armsMode || 'idle', frame);
+  const legs = (sgn) => {
+    if (st.sit) { limb3(0, -24, 13, -24, 13, -2, o.dress ? 4 : 6, o.dress ? o.skin : pants, o.dress ? o.skin : pants); ctx.fillStyle = shoe; ctx.fillRect(11, -3, 7, 3); }
+    else { const k = sgn * Math.sin(a) * 9; limb3(sgn * 2, -26, k, -13, k * 1.4, 0, o.dress ? 4 : 6, o.dress ? o.skin : pants, o.dress ? o.skin : pants); ctx.fillStyle = shoe; ctx.fillRect(k * 1.4 - 2, -3, 8, 3); }
+  };
+  legs(-1);
+  if (!st.sit) limb3(0, -46, -Math.sin(a) * 6 - 4, -34, -Math.sin(a) * 7 - 3, -26, 5, o.coat || top, o.skin);
+  legs(1);
+  // torso
+  ctx.fillStyle = top;
+  if (o.dress) {
+    ctx.beginPath(); ctx.moveTo(-tw, -50); ctx.lineTo(tw, -50); ctx.lineTo(tw + 2, -30); ctx.lineTo(st.sit ? 16 : tw + 5, st.sit ? -20 : -12); ctx.lineTo(st.sit ? -6 : -tw - 5, st.sit ? -20 : -12); ctx.lineTo(-tw - 2, -30); ctx.closePath(); ctx.fill();
+  } else rr(-tw, -50, tw * 2, 26, 3);
+  if (o.apron) { ctx.fillStyle = o.apron; ctx.fillRect(-tw + 2, -42, tw * 2 - 1, 28); }
+  if (o.tie) { ctx.fillStyle = o.tie; ctx.beginPath(); ctx.moveTo(2, -49); ctx.lineTo(5, -49); ctx.lineTo(4.5, -34); ctx.lineTo(3.5, -32); ctx.lineTo(2.5, -34); ctx.fill(); }
+  if (o.coat && !o.dress || (o.coat && o.dress)) {
+    ctx.fillStyle = o.coat;
+    const bot = o.coatLong ? -8 : -22;
+    ctx.beginPath(); ctx.moveTo(-tw - 1, -51); ctx.lineTo(-1, -51); ctx.lineTo(-1, bot); ctx.lineTo(-tw - 2, bot); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(tw + 1, -51); ctx.lineTo(tw - 3, -51); ctx.lineTo(tw - 2, bot); ctx.lineTo(tw + 2, bot); ctx.closePath(); ctx.fill();
+  }
+  // front arm
+  const ac = o.coat || top;
+  if (st.pose === 'hold') limb3(0, -46, 10, -40, 16, -44, 5, ac, o.skin);
+  else if (st.pose === 'wave') limb3(0, -46, 10, -56, 12, -66, 5, ac, o.skin);
+  else if (st.sit) limb3(0, -46, 8, -36, 16, -34, 5, ac, o.skin);
+  else limb3(0, -46, Math.sin(a) * 6 + 4, -34, Math.sin(a) * 7 + 6, -26, 5, ac, o.skin);
+  ctx.fillStyle = o.skin; circle(st.pose === 'wave' ? 12 : st.sit ? 16 : Math.sin(a) * 7 + 6, st.pose === 'wave' ? -67 : st.sit ? -34 : -26, 2.4);
+  ctx.save(); ctx.translate(1, -59 + (st.talk ? Math.sin(frame * .3) * .6 : 0)); humanHead(o); ctx.restore();
+  if (o.harness && chipBlink > 0) { ctx.fillStyle = frame % 8 < 4 ? '#ff3a2a' : '#331'; circle(-5, -50, 1.8); }
+  else if (o.harness) { ctx.fillStyle = '#ffd84a'; circle(-5, -50, 1.4); }
+  ctx.restore();
+}
+
+function spideyHead(pal = SPIDEY_PAL) {
+  ctx.fillStyle = pal.r; circle(0, 0, 10);
+  ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = .7; ctx.beginPath();
+  for (let a = 0; a < 8; a++) { const t = a / 8 * Math.PI * 2; ctx.moveTo(3, 1); ctx.lineTo(3 + Math.cos(t) * 10, 1 + Math.sin(t) * 10); }
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(3, 1, 4.5, 0, Math.PI * 2); ctx.arc(3, 1, 8, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(5.5, -1.5, 3.4, 2.3, -.55, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-1.2, -2, 2.6, 2, .5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+}
+function drawSpidey(p, opts = {}) {
+  const R = RED, B = BLUE, DB = DARKBLUE;
+  const cx = p.x + p.w / 2, fy = p.y + p.h;
+  const savedA = ctx.globalAlpha;
+  if (p.inv > 0 && frame % 6 < 3 && !opts.still) ctx.globalAlpha = savedA * .45;
+  if (p.swing && !opts.still) {
+    ctx.strokeStyle = '#f2f2ff'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(cx + p.face * 4, p.y + 10); ctx.lineTo(p.swing.x, p.swing.y); ctx.stroke();
+    ctx.fillStyle = '#f2f2ff'; circle(p.swing.x, p.swing.y, 3);
+  }
+  ctx.save(); ctx.translate(cx, fy); ctx.scale(p.face, 1);
+  const moving = p.onGround && Math.abs(p.vx) > .4, a = Math.sin(p.anim) * .9, air = !p.onGround && !opts.still;
+  if (opts.sit) { limb3(0, -24, 13, -24, 13, -2, 7, B, DB); }
+  else if (air) limb3(0, -26, -8, -14, -14, -4, 7, B, DB);
+  else if (moving) limb3(0, -26, -Math.sin(a) * 9, -13, -Math.sin(a) * 15, 0, 7, B, DB);
+  else limb3(0, -26, -4, -13, -5, 0, 7, B, DB);
+  if (p.swing) limb3(0, -44, -8, -36, -12, -28, 6, R);
+  else limb3(0, -44, -Math.sin(a) * 6 - 3, -34, -Math.sin(a) * 8 - 2, -26, 6, R);
+  ctx.fillStyle = B; ctx.beginPath(); ctx.moveTo(-8, -48); ctx.lineTo(8, -48); ctx.lineTo(6, -24); ctx.lineTo(-6, -24); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = R; ctx.beginPath(); ctx.moveTo(-5, -48); ctx.lineTo(8, -48); ctx.lineTo(6, -34); ctx.lineTo(2, -24); ctx.lineTo(-3, -24); ctx.lineTo(-5, -34); ctx.closePath(); ctx.fill();
+  ctx.fillRect(-6, -28, 12, 5);
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(2, -42); ctx.lineTo(2, -37); ctx.moveTo(-1, -43); ctx.lineTo(5, -36); ctx.moveTo(5, -43); ctx.lineTo(-1, -36); ctx.stroke();
+  if (opts.sit) limb3(0, -24, 14, -22, 14, -2, 7, B, R);
+  else if (air) limb3(0, -26, 9, -18, 6, -6, 7, B, R);
+  else if (moving) limb3(0, -26, Math.sin(a) * 9, -13, Math.sin(a) * 15, 0, 7, B, R);
+  else limb3(0, -26, 4, -13, 5, 0, 7, B, R);
+  ctx.save(); ctx.translate(2, -56); spideyHead();
+  if (opts.unmask) { ctx.fillStyle = '#efc6a2'; ctx.beginPath(); ctx.arc(1, 2, 9.6, .15, Math.PI - .5); ctx.fill(); ctx.fillStyle = '#b5534a'; ctx.fillRect(4, 5, 4, 1.5); }
+  ctx.restore();
+  if (p.punchT > 3) limb3(0, -44, 12, -44, 25, -43, 6.5, R);
+  else if (p.shootT > 0) limb3(0, -44, 12, -45, 22, -46, 6, R);
+  else if (p.swing) {
+    const wx = (p.swing.x - cx) * p.face, wy = p.swing.y - (p.y + 10), ang = Math.atan2(wy, wx);
+    limb3(0, -44, Math.cos(ang) * 11, -44 + Math.sin(ang) * 11, Math.cos(ang) * 21, -44 + Math.sin(ang) * 21, 6, R);
+  } else if (opts.hug) limb3(0, -44, 10, -40, 18, -46, 6, R);
+  else limb3(0, -44, Math.sin(a) * 6 + 4, -34, Math.sin(a) * 8 + 8, -26, 6, R);
+  ctx.restore();
+  ctx.globalAlpha = savedA;
+}
+function catHead(unmasked) {
+  ctx.fillStyle = '#f5f2ec';
+  ctx.beginPath(); ctx.moveTo(4, -11);
+  ctx.bezierCurveTo(-10, -16, -18, -4, -16, 10); ctx.bezierCurveTo(-15, 22, -22, 32, -14, 40); ctx.bezierCurveTo(-8, 30, -6, 20, -4, 8);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f0d3c4'; ctx.beginPath(); ctx.ellipse(1.5, 0, 7.5, 9.5, 0, 0, Math.PI * 2); ctx.fill();
+  if (!unmasked) {
+    ctx.fillStyle = '#0b0b10';
+    ctx.beginPath(); ctx.moveTo(-6, -4); ctx.quadraticCurveTo(2, -7, 10, -5); ctx.lineTo(9, -1); ctx.quadraticCurveTo(2, -2, -5, 0); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = unmasked ? '#3a7a6a' : '#6fe0c6'; ctx.beginPath(); ctx.ellipse(6, -3, 1.6, 1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#d11a3a'; ctx.beginPath(); ctx.ellipse(6.2, 4.6, 2.2, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.moveTo(-8, -2); ctx.bezierCurveTo(-6, -14, 8, -14, 11, -6); ctx.bezierCurveTo(4, -10, -2, -8, -4, 0); ctx.closePath(); ctx.fill();
+}
+function drawCat(c) {
+  const cx = c.x + c.w / 2, fy = c.y + c.h;
+  ctx.save(); ctx.translate(cx, fy); ctx.scale(c.face, 1);
+  const flying = c.mode === 'leap' || c.mode === 'back';
+  const sway = Math.sin((c.t || frame) * .05) * 2;
+  const BL = '#0e0d14', FUR = '#f5f2ec';
+  if (c.mode === 'sit') {
+    limb3(0, -20, 12, -18, 14, -2, 5.5, BL); limb3(0, -20, 10, -16, 18, -4, 5.5, BL);
+    ctx.translate(0, 8);
+  } else if (flying) {
+    ctx.rotate(c.mode === 'leap' ? -.5 : (c.p || 0) * Math.PI * 2);
+    limb3(0, -26, -10, -18, -18, -14, 5.5, BL); limb3(0, -26, -6, -20, -14, -24, 5.5, BL);
+  } else if (c.run) {
+    const a = Math.sin((c.t || frame) * .3) * .9;
+    limb3(0, -26, -Math.sin(a) * 9, -13, -Math.sin(a) * 13, 0, 5.5, BL); limb3(0, -26, Math.sin(a) * 9, -13, Math.sin(a) * 13, 0, 5.5, BL);
+  } else {
+    limb3(sway * .5, -26, -3, -13, -4, 0, 5.5, BL); limb3(sway * .5, -26, 5, -13, 3, 0, 5.5, BL);
+  }
+  if (!flying && c.mode !== 'sit') { ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(-3, -5, 3.5, 2.2, 0, 0, Math.PI * 2); ctx.ellipse(4, -5, 3.5, 2.2, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = BL;
+  ctx.beginPath();
+  ctx.moveTo(-6 + sway * .5, -28); ctx.quadraticCurveTo(-9 + sway, -24, -6 + sway * .5, -22);
+  ctx.lineTo(7 + sway * .5, -22); ctx.quadraticCurveTo(9 + sway, -26, 5, -34);
+  ctx.quadraticCurveTo(7, -42, 7, -46); ctx.lineTo(-5, -46); ctx.quadraticCurveTo(-3, -38, -6 + sway * .5, -28);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(1, -46, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-1, -44); ctx.lineTo(3, -44); ctx.lineTo(1, -36); ctx.closePath(); ctx.fill();
+  if (flying && c.mode === 'leap') limb3(1, -44, 12, -48, 22, -50, 4.5, BL);
+  else if (c.mode === 'kiss') { limb3(1, -43, 10, -46, 16, -54, 4.5, BL); limb3(1, -43, 12, -40, 18, -44, 4.5, BL); }
+  else if (c.mode === 'sit') { limb3(1, -43, -6, -34, -8, -22, 4.5, BL); limb3(1, -43, 8, -36, 12, -26, 4.5, BL); }
+  else if (!flying && !c.run) { limb3(1, -43, 10, -34, 7 + sway, -25, 4.5, BL); limb3(1, -43, -6, -52, 0, -60, 4.5, BL); ctx.fillStyle = FUR; circle(7 + sway, -26, 2.4); circle(0, -59, 2.4); }
+  else limb3(1, -43, 8, -36, 12, -30, 4.5, BL);
+  ctx.save(); ctx.translate(2, -56); catHead(c.unmasked); ctx.restore();
+  ctx.restore();
+}
+function drawThug(e) {
+  const cx = e.x + e.w / 2, fy = e.y + e.h;
+  ctx.save();
+  if (e.dead) { ctx.translate(cx, e.y + e.h / 2); ctx.rotate(e.rot); ctx.translate(0, e.h / 2); } else ctx.translate(cx, fy);
+  ctx.scale(e.face, 1);
+  const fl = e.flash > 0 && frame % 4 < 2, C = c => fl ? '#ffffff' : c;
+  const a = Math.sin(e.anim) * .9;
+  const inmate = e.pal === 'inmate', merc = e.pal === 'merc';
+  const pants = C(inmate ? '#c8621e' : merc ? '#1a1c22' : '#2c2c3a');
+  const coat = C(inmate ? '#e0782a' : merc ? '#23262e' : e.type === 'gunner' ? '#3a3f33' : e.hue), skin = C('#d9a27a');
+  limb3(0, -24, -Math.sin(a) * 8, -12, -Math.sin(a) * 12, 0, 8, pants, C('#151520'));
+  limb3(0, -44, -6, -34, -4, -26, 7, coat, skin);
+  ctx.fillStyle = coat; ctx.beginPath(); ctx.moveTo(-10, -48); ctx.lineTo(10, -48); ctx.lineTo(9, -22); ctx.lineTo(-9, -22); ctx.closePath(); ctx.fill();
+  if (inmate) { ctx.fillStyle = C('#1a1a1a'); ctx.font = `7px ${F_UI}`; ctx.fillText('№' + (Math.round(e.anim * 0 + e.x) % 90 + 10), -7, -34); }
+  limb3(0, -24, Math.sin(a) * 8, -12, Math.sin(a) * 12, 0, 8, pants, C('#151520'));
+  ctx.fillStyle = skin; circle(2, -55, 9);
+  if (merc) { ctx.fillStyle = C('#111'); ctx.beginPath(); ctx.arc(2, -55, 9.6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = skin; ctx.fillRect(3, -58, 8, 4); ctx.fillStyle = '#111'; ctx.fillRect(6, -57, 2, 2); }
+  else if (inmate) { ctx.fillStyle = C('#2a1a10'); ctx.beginPath(); ctx.arc(2, -58, 9, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#111'; ctx.fillRect(5, -56, 3, 2); }
+  else { ctx.fillStyle = C('#b3263a'); ctx.beginPath(); ctx.arc(2, -57, 9.5, Math.PI, 0); ctx.fill(); ctx.fillRect(-8, -59, 20, 3); ctx.fillStyle = '#111'; ctx.fillRect(5, -56, 3, 2); }
+  if (e.type === 'gunner') {
+    const up = e.aim > 0 ? -2 : 0;
+    limb3(0, -44, 10, -42 + up, 18, -42 + up, 7, coat, skin);
+    if (inmate) { ctx.fillStyle = '#9aa0aa'; ctx.fillRect(16, -48 + up, 14, 3); }
+    else { ctx.fillStyle = '#111'; ctx.fillRect(16, -46 + up, 16, 5); ctx.fillRect(18, -42 + up, 4, 6); }
+    if (e.aim > 8 && !inmate) { ctx.fillStyle = GOLD; circle(35, -44 + up, 4); }
+  } else if (e.atk > 0) { const wind = e.atk > 8; limb3(0, -44, wind ? -10 : 12, -44, wind ? -16 : 26, -44, 7.5, coat, skin); }
+  else limb3(0, -44, 6, -34, 9, -27, 7, coat, skin);
+  if (e.webbed > 0) drawWebWrap(-13, -62, 26, 58);
+  ctx.restore();
+}
+function drawWebWrap(x, y, w, h) {
+  ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.4; ctx.beginPath();
+  for (let yy = y + 4; yy < y + h; yy += 10) { ctx.moveTo(x, yy); ctx.lineTo(x + w, yy + 7); ctx.moveTo(x + w, yy); ctx.lineTo(x, yy + 6); }
+  ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(x, y, w, h);
+}
+function drawBrute(e) {
+  const cx = e.x + e.w / 2, fy = e.y + e.h;
+  ctx.save();
+  if (e.dead) { ctx.translate(cx, e.y + e.h / 2); ctx.rotate(e.rot); ctx.translate(0, e.h / 2); } else ctx.translate(cx, fy);
+  ctx.scale(e.face, 1);
+  const fl = e.flash > 0 && frame % 4 < 2, C = c => fl ? '#ffffff' : c;
+  const a = Math.sin(e.anim) * .7;
+  const inmate = e.pal === 'inmate', merc = e.pal === 'merc';
+  const body = C(inmate ? '#e0782a' : merc ? '#2a2e38' : '#4a3a6a'), leg = C(inmate ? '#c8621e' : '#2a2a38');
+  limb3(-4, -26, -4 - Math.sin(a) * 7, -13, -6 - Math.sin(a) * 10, 0, 11, leg, C('#111'));
+  limb3(4, -26, 4 + Math.sin(a) * 7, -13, 6 + Math.sin(a) * 10, 0, 11, leg, C('#111'));
+  ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-16, -56); ctx.lineTo(16, -56); ctx.lineTo(13, -24); ctx.lineTo(-13, -24); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C('#c99a7a'); circle(3, -63, 10);
+  ctx.fillStyle = C(merc ? '#111' : '#2a2a38'); ctx.beginPath(); ctx.arc(3, -65, 10.5, Math.PI, 0); ctx.fill();
+  const slam = e.atk > 0, armY = slam ? (e.atk > 10 ? -74 : -20) : -40;
+  limb3(0, -50, 14, (armY - 50) / 2 - 10, 20, armY, 9, body, C('#c99a7a'));
+  if (e.shield) {
+    ctx.fillStyle = C(inmate ? '#8a8a8a' : '#8aa8c8'); ctx.strokeStyle = '#2a3a4a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(18, -62); ctx.lineTo(28, -58); ctx.lineTo(28, -14); ctx.lineTo(18, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  if (e.webbed > 0) drawWebWrap(-17, -74, 34, 72);
+  ctx.restore();
+}
+function kangHead() {
+  ctx.fillStyle = '#8a5a2a';
+  ctx.beginPath(); ctx.ellipse(-5, -14, 3, 8, -.3, 0, Math.PI * 2); ctx.ellipse(2, -15, 3, 8, .2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(1, 0, 9, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e8b894'; ctx.beginPath(); ctx.ellipse(4, 2, 6, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.fillRect(5, -1, 2, 2); ctx.fillRect(4, 5, 4, 1);
+}
+function drawKang(k) {
+  ctx.save(); ctx.translate(k.x + k.w / 2, k.y + k.h);
+  if (k.state === 'dead') { ctx.rotate(-1.4 * k.face); }
+  ctx.scale(k.face, 1);
+  const fl = k.flash > 0 && frame % 4 < 2, Cc = c => fl ? '#fff' : c;
+  const air = k.state === 'air';
+  ctx.fillStyle = Cc('#8a5a2a'); ctx.beginPath(); ctx.moveTo(-6, -24); ctx.quadraticCurveTo(-26, -14, -32, 0); ctx.lineTo(-25, 0); ctx.quadraticCurveTo(-18, -12, -2, -18); ctx.fill();
+  const leg = (s) => {
+    const kx = air ? 8 : 4 * s, ky = air ? -16 : -12;
+    limb(0, -26, kx, ky, 8, Cc('#8a5a2a'));
+    ctx.strokeStyle = '#9aa0aa'; ctx.lineWidth = 2; ctx.beginPath();
+    const fx = air ? 2 : 6 * s;
+    for (let i = 0; i <= 6; i++) { const t = i / 6; ctx.lineTo(lerp(kx, fx, t) + (i % 2 ? 4 : -4), lerp(ky, 0, t)); }
+    ctx.stroke(); ctx.fillStyle = '#333'; ctx.fillRect(fx - 4, -2, 12, 3);
+  };
+  leg(-1); leg(1);
+  ctx.fillStyle = Cc('#8a5a2a'); rr(-10, -52, 20, 28, 5);
+  ctx.fillStyle = Cc('#d9a46a'); rr(-4, -46, 12, 20, 4);
+  limb3(0, -46, 10, -40, 18, -46, 6, Cc('#8a5a2a'));
+  ctx.fillStyle = Cc('#c82a2a'); circle(19, -46, 5);
+  ctx.save(); ctx.translate(2, -62); kangHead(); ctx.restore();
+  if (k.state === 'stunned') { drawWebWrap(-14, -70, 30, 68); for (let i = 0; i < 3; i++) { const a = frame * .12 + i * 2.1; drawStar(Math.cos(a) * 16, -86 + Math.sin(a) * 4, 5, GOLD); } }
+  ctx.restore();
+}
+function drawStar(x, y, r, color) {
+  ctx.fillStyle = color; ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 - Math.PI / 2, rr2 = i % 2 ? r * .45 : r; ctx.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2); }
+  ctx.closePath(); ctx.fill();
+}
+function drawPickup(k) {
+  const y = k.y + Math.sin(frame * .08 + k.x) * 3;
+  ctx.save(); ctx.translate(k.x, y);
+  ctx.fillStyle = 'rgba(255,216,74,.18)'; circle(0, 0, 18);
+  ctx.fillStyle = '#e0a458'; ctx.beginPath(); ctx.ellipse(0, 3, 15, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#b6452c'; ctx.beginPath(); ctx.ellipse(0, 0, 16, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// ============================================================ backgrounds
+function makeLayer(seed, color, win, minH, maxH, base, width) {
+  const c = document.createElement('canvas'); c.width = width; c.height = H;
+  const g = c.getContext('2d'); const r = rng(seed);
+  let x = 0;
+  while (x < width) {
+    const w = 40 + r() * 90, h = minH + r() * (maxH - minH);
+    g.fillStyle = color; g.fillRect(x, base - h, w + 1, H);
+    if (r() < .3) g.fillRect(x + w / 2 - 1, base - h - 26, 2, 26);
+    g.fillStyle = win;
+    for (let yy = base - h + 10; yy < H; yy += 14) for (let xx = x + 6; xx < x + w - 8; xx += 11) if (r() < .16) g.fillRect(xx, yy, 4, 6);
+    x += w + (r() < .3 ? r() * 16 : 0);
+  }
+  return c;
+}
+const LAYER_FAR = makeLayer(11, '#1a1840', 'rgba(255,220,150,.3)', 90, 260, 470, 1600);
+const LAYER_MID = makeLayer(29, '#221c4b', 'rgba(255,214,120,.5)', 60, 200, 520, 1600);
+const LAYER_DAY = makeLayer(37, '#8a9ab8', 'rgba(255,255,255,.35)', 80, 240, 480, 1600);
+const STARS = Array.from({ length: 90 }, (_, i) => ({ x: hash(i, 1) * W, y: hash(i, 2) * 300, r: hash(i, 3) * 1.4 + .3, p: hash(i, 4) * 6 }));
+function tile(img, off, dy, x0 = 0, w = W) {
+  const lw = img.width; let x = x0 - (((off % lw) + lw) % lw);
+  for (; x < x0 + w; x += lw) ctx.drawImage(img, x, dy);
+}
+function drawNight(cam = camX) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#06051a'); g.addColorStop(.55, '#1b1747'); g.addColorStop(1, '#4b2a5e');
+  ctx.fillStyle = g; ctx.fillRect(-10, -10, W + 20, H + 20);
+  for (const s of STARS) { ctx.globalAlpha = .45 + .4 * Math.sin(frame * .03 + s.p); ctx.fillStyle = '#fff'; ctx.fillRect(s.x, s.y, s.r, s.r); }
+  ctx.globalAlpha = 1;
+  const mx = 760 - cam * .03, my = 110;
+  const mg = ctx.createRadialGradient(mx, my, 30, mx, my, 170);
+  mg.addColorStop(0, 'rgba(255,240,190,.35)'); mg.addColorStop(1, 'rgba(255,240,190,0)');
+  ctx.fillStyle = mg; ctx.fillRect(mx - 170, my - 170, 340, 340);
+  ctx.fillStyle = '#f5e7b0'; circle(mx, my, 58);
+  tile(LAYER_FAR, cam * .15, 0);
+  tile(LAYER_MID, cam * .35, 0);
+}
+
+// civil painters (world coordinates)
+function wall(x0, x1, c) { ctx.fillStyle = c; ctx.fillRect(x0, 40, x1 - x0, 420); }
+function floorWood(x0, x1) {
+  ctx.fillStyle = '#7a5a3c'; ctx.fillRect(x0, FLOOR, x1 - x0, 120);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; for (let x = x0 - (x0 % 60); x < x1; x += 60) ctx.fillRect(x, FLOOR, 2, 120);
+  ctx.fillStyle = '#5a3e28'; ctx.fillRect(x0, FLOOR - 12, x1 - x0, 12);
+}
+function winFrame(x, y, w, h, night, city) {
+  ctx.fillStyle = '#6a4a30'; ctx.fillRect(x - 6, y - 6, w + 12, h + 12);
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  if (night) { g.addColorStop(0, '#0a0c28'); g.addColorStop(1, '#2a2050'); } else { g.addColorStop(0, '#8cc8ff'); g.addColorStop(1, '#d8eeff'); }
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  if (night) { ctx.fillStyle = '#f5e7b0'; circle(x + w * .7, y + h * .3, 12); }
+  if (city) { ctx.fillStyle = night ? '#1a1840' : '#9aa8c0'; for (let i = 0; i < w; i += 18) { const hh = 20 + hash(i, x) * 50; ctx.fillRect(x + i, y + h - hh, 16, hh); } }
+  ctx.fillStyle = '#6a4a30'; ctx.fillRect(x + w / 2 - 2, y, 4, h); ctx.fillRect(x, y + h / 2 - 2, w, 4);
+}
+function paintHome(night) {
+  wall(-60, 905, '#e9dcc0');
+  ctx.fillStyle = 'rgba(160,120,80,.09)'; for (let x = -60; x < 905; x += 30) ctx.fillRect(x, 40, 12, 420);
+  wall(905, 1460, '#c8d4e8');
+  ctx.fillStyle = 'rgba(80,100,150,.08)'; for (let x = 905; x < 1460; x += 24) ctx.fillRect(x, 40, 8, 420);
+  // kitchen
+  ctx.fillStyle = '#dfe8e8'; ctx.fillRect(20, 300, 280, 80);
+  ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 1; for (let x = 20; x < 300; x += 20) { ctx.beginPath(); ctx.moveTo(x, 300); ctx.lineTo(x, 380); ctx.stroke(); }
+  ctx.fillStyle = '#e8eef0'; rr(40, 250, 70, 210, 6); ctx.fillStyle = '#b0b8c0'; ctx.fillRect(98, 300, 4, 40); ctx.fillRect(98, 380, 4, 30);
+  ctx.fillStyle = '#b8a080'; ctx.fillRect(120, 380, 180, 80); ctx.fillStyle = '#d8d0c0'; ctx.fillRect(116, 376, 188, 8);
+  ctx.fillStyle = '#3a3a3a'; circle(170, 372, 8); circle(220, 372, 8);
+  winFrame(330, 210, 130, 110, night);
+  ctx.fillStyle = '#c84a4a'; ctx.fillRect(318, 200, 20, 130); ctx.fillRect(452, 200, 20, 130);
+  ctx.fillStyle = '#8a6a4a'; ctx.fillRect(340, 402, 150, 8); ctx.fillRect(350, 410, 6, 50); ctx.fillRect(476, 410, 6, 50);
+  ctx.fillStyle = '#f0e0c0'; ctx.beginPath(); ctx.ellipse(400, 400, 16, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c89a5a'; ctx.beginPath(); ctx.ellipse(400, 396, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
+  // front door
+  ctx.fillStyle = '#6b3a22'; rr(508, 262, 64, 198, 3); ctx.fillStyle = GOLD; circle(560, 370, 3);
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(520, 280, 40, 50);
+  // living room
+  ctx.fillStyle = '#6b4a3a'; rr(700, 360, 90, 100, 10); ctx.fillStyle = '#8a5a44'; rr(690, 330, 26, 110, 8); rr(772, 330, 26, 110, 8);
+  ctx.fillStyle = '#5a3a28'; ctx.fillRect(672, 222, 58, 66); ctx.fillStyle = '#e8dcc0'; ctx.fillRect(677, 227, 48, 56);
+  ctx.save(); ctx.translate(700, 252); ctx.scale(1.6, 1.6); humanHead({ skin: '#e8c0a0', hair: 'short', hairC: '#9a9a9a', glasses: true }); ctx.restore();
+  ctx.fillStyle = '#c9a13b'; ctx.fillRect(820, 300, 4, 160); ctx.fillStyle = '#f0d890'; ctx.beginPath(); ctx.moveTo(806, 300); ctx.lineTo(838, 300); ctx.lineTo(830, 280); ctx.lineTo(814, 280); ctx.fill();
+  // partition
+  ctx.fillStyle = '#b8a888'; ctx.fillRect(898, 40, 12, 240);
+  // peter's room
+  ctx.fillStyle = '#e8e0d0'; ctx.fillRect(950, 190, 70, 90); ctx.save(); ctx.translate(985, 232); ctx.scale(2.2, 2.2); humanHead({ skin: '#e8c8a8', hair: 'spiky', hairC: '#ffffff', mustache: '#dddddd' }); ctx.restore();
+  ctx.fillStyle = '#111'; ctx.font = `8px ${F_UI}`; ctx.fillText('E = mc²', 965, 272);
+  ctx.fillStyle = '#6a4a30'; ctx.fillRect(1020, 390, 120, 8); ctx.fillRect(1026, 398, 6, 62); ctx.fillRect(1128, 398, 6, 62);
+  ctx.fillStyle = '#2a2a33'; ctx.fillRect(1040, 340, 56, 40); ctx.fillStyle = night ? '#6a8aff' : '#3a5a8a'; ctx.fillRect(1044, 344, 48, 32);
+  ctx.fillStyle = '#111'; ctx.fillRect(1100, 376, 18, 12); ctx.fillStyle = '#555'; circle(1109, 382, 4);
+  ctx.fillStyle = '#222'; ctx.fillRect(1068, 384, 14, 6); if (frame % 60 < 30) { ctx.fillStyle = '#6fe0c6'; ctx.fillRect(1071, 385, 8, 3); }
+  ctx.fillStyle = '#8a6a4a'; ctx.fillRect(1150, 370, 46, 90); ctx.fillStyle = '#6a4a30'; ctx.fillRect(1150, 395, 46, 3); ctx.fillRect(1150, 425, 46, 3);
+  ctx.fillStyle = '#4a6aa0'; rr(1210, 410, 170, 50, 6); ctx.fillStyle = '#e8e8f0'; rr(1350, 396, 34, 20, 6);
+  winFrame(1270, 200, 90, 110, night, true);
+  floorWood(-60, 1460);
+  if (night) { ctx.fillStyle = 'rgba(10,10,40,.5)'; ctx.fillRect(-60, 40, 1520, 540); const g = ctx.createRadialGradient(1068, 360, 10, 1068, 360, 200); g.addColorStop(0, 'rgba(255,220,150,.3)'); g.addColorStop(1, 'rgba(255,220,150,0)'); ctx.fillStyle = g; ctx.fillRect(868, 160, 400, 400); }
+}
+function paintBugle() {
+  wall(-60, 1660, '#cfd8cc');
+  ctx.fillStyle = '#a8b4a8'; ctx.fillRect(-60, 380, 1720, 80);
+  for (let x = 120; x < 1220; x += 260) winFrame(x, 150, 200, 170, false, true);
+  ctx.fillStyle = '#2a2a2a'; ctx.fillRect(40, 90, 280, 44); ctx.fillStyle = '#fff'; ctx.font = `18px ${F_DISP}`; ctx.fillText('DAILY BUGLE', 58, 120);
+  ctx.fillStyle = '#9aa0a8'; ctx.fillRect(10, 250, 60, 210); ctx.fillStyle = '#5a6068'; ctx.fillRect(38, 250, 4, 210); ctx.fillStyle = '#c9a13b'; ctx.fillRect(20, 230, 40, 14);
+  ctx.fillStyle = '#111'; ctx.font = `9px ${F_UI}`; ctx.fillText('ЛИФТ', 26, 241);
+  for (const x of [300, 760, 980]) { ctx.fillStyle = '#6a5a4a'; ctx.fillRect(x, 400, 150, 8); ctx.fillRect(x + 6, 408, 6, 52); ctx.fillRect(x + 138, 408, 6, 52); ctx.fillStyle = '#e8e8e0'; ctx.fillRect(x + 20, 380, 40, 22); ctx.fillStyle = '#2a2a33'; ctx.fillRect(x + 80, 364, 40, 30); ctx.fillStyle = '#8ab0d0'; ctx.fillRect(x + 83, 367, 34, 24); }
+  ctx.fillStyle = '#2a2a33'; ctx.fillRect(560, 190, 90, 60); ctx.fillStyle = frame % 40 < 20 ? '#4a6a9a' : '#5a7aaa'; ctx.fillRect(565, 195, 80, 50);
+  ctx.fillStyle = '#fff'; ctx.font = `7px ${F_UI}`; ctx.fillText('НОВОСТИ 24', 575, 240);
+  ctx.fillStyle = '#b8e0f8'; ctx.fillRect(640, 360, 26, 60); ctx.fillStyle = '#ddd'; ctx.fillRect(636, 420, 34, 40);
+  ctx.fillStyle = 'rgba(160,200,220,.35)'; ctx.fillRect(1250, 120, 12, 340);
+  ctx.fillStyle = '#6a4a30'; ctx.fillRect(1340, 400, 200, 10); ctx.fillRect(1350, 410, 8, 50); ctx.fillRect(1522, 410, 8, 50);
+  ctx.fillStyle = '#2a2a2a'; ctx.fillRect(1290, 140, 280, 34); ctx.fillStyle = '#e8e8e0'; ctx.font = `11px ${F_DISP}`; ctx.fillText('ДЖ. ДЖ. ДЖЕЙМСОН · ГЛ. РЕДАКТОР', 1298, 162);
+  ctx.fillStyle = '#8a2a2a'; ctx.fillRect(1560, 220, 60, 90); ctx.fillStyle = '#fff'; ctx.font = `8px ${F_UI}`; ctx.fillText('РАЗЫСКИВАЕТСЯ', 1562, 236); ctx.save(); ctx.translate(1590, 270); ctx.scale(1.6, 1.6); spideyHead(); ctx.restore();
+  ctx.fillStyle = '#5a5a62'; ctx.fillRect(-60, FLOOR, 1720, 120);
+  ctx.fillStyle = 'rgba(255,255,255,.04)'; for (let x = -60; x < 1660; x += 40) ctx.fillRect(x, FLOOR, 20, 120);
+}
+function paintLab(demo, night) {
+  wall(-60, 1360, '#262b36');
+  ctx.fillStyle = '#2e3440'; for (let x = -60; x < 1360; x += 120) ctx.fillRect(x + 4, 50, 112, 400);
+  ctx.fillStyle = '#3a4050'; ctx.fillRect(-60, 110, 1420, 8);
+  ctx.fillStyle = '#1e2a22'; ctx.fillRect(70, 170, 220, 140); ctx.strokeStyle = '#6a5a3a'; ctx.lineWidth = 6; ctx.strokeRect(70, 170, 220, 140);
+  ctx.fillStyle = '#d8e0d8'; ctx.font = `12px ${F_TALK}`; ctx.fillText('²H + ³H → ⁴He + n + 17,6 МэВ', 84, 200); ctx.fillText('B = μ₀ n I', 84, 226); ctx.fillText('τ > 1 с ?!', 84, 252); ctx.fillText('РОЗИ — ДР 12.05 !!!', 84, 290);
+  // reactor
+  const rx = 700, ry = 300;
+  ctx.fillStyle = '#3a4050'; ctx.fillRect(rx - 110, 400, 220, 60); ctx.fillStyle = '#4a5060'; ctx.fillRect(rx - 120, 392, 240, 10);
+  ctx.strokeStyle = '#6a7080'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(rx, ry, 80, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = '#8a90a0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(rx, ry, 100, 30, frame * .01, 0, Math.PI * 2); ctx.stroke();
+  const on = labSun || (!night && !demo ? .15 : 0);
+  if (on > 0) { const g = ctx.createRadialGradient(rx, ry, 5, rx, ry, 70 + on * 60); g.addColorStop(0, '#fff8d0'); g.addColorStop(.4, `rgba(255,190,60,${.4 + on * .5})`); g.addColorStop(1, 'rgba(255,120,30,0)'); ctx.fillStyle = g; circle(rx, ry, 70 + on * 60 + Math.sin(frame * .3) * 4); }
+  else { ctx.fillStyle = '#1a1e28'; circle(rx, ry, 40); }
+  ctx.fillStyle = '#4a5060'; ctx.fillRect(rx - 6, 380, 12, 20);
+  // consoles
+  for (const x of [930, 1030]) { ctx.fillStyle = '#3a4050'; ctx.fillRect(x, 380, 80, 80); ctx.fillStyle = '#1a2030'; ctx.fillRect(x + 8, 330, 64, 44); ctx.fillStyle = labSun ? '#ff6a4a' : '#4fdc7a'; for (let i = 0; i < 5; i++) ctx.fillRect(x + 12 + i * 12, 366 - ((frame + i * 20 + x) % 30), 6, 4); }
+  ctx.fillStyle = '#2a2a30'; ctx.fillRect(1060, 300, 40, 60); ctx.fillStyle = '#8a4a2a'; ctx.fillRect(1072, 330, 16, 16);
+  ctx.fillStyle = '#4a5060'; ctx.fillRect(1230, 250, 70, 210); ctx.fillStyle = '#2a3040'; ctx.fillRect(1240, 260, 50, 190);
+  if (demo) {
+    ctx.fillStyle = '#6a1a2a'; ctx.fillRect(420, 70, 560, 40); ctx.fillStyle = GOLD; ctx.font = `16px ${F_DISP}`; ctx.fillText('ЭНЕРГИЯ БУДУЩЕГО · Д-Р О. ОКТАВИУС', 440, 97);
+    ctx.fillStyle = '#15121e'; for (let i = 0; i < 16; i++) { const x = 30 + i * 22 + (i % 2) * 6; circle(x, 470 - (i % 3) * 3, 10); ctx.fillRect(x - 11, 470, 22, 60); }
+  }
+  ctx.fillStyle = '#3a3f4a'; ctx.fillRect(-60, FLOOR, 1420, 120);
+  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1; for (let x = -60; x < 1360; x += 40) { ctx.beginPath(); ctx.moveTo(x, FLOOR); ctx.lineTo(x, FLOOR + 120); ctx.stroke(); }
+  if (night || labDark) { ctx.fillStyle = `rgba(5,5,15,${night ? .6 : .5})`; ctx.fillRect(-60, 40, 1420, 560); if (night) { const g = ctx.createRadialGradient(620, 380, 10, 620, 380, 180); g.addColorStop(0, 'rgba(255,220,150,.3)'); g.addColorStop(1, 'rgba(255,220,150,0)'); ctx.fillStyle = g; ctx.fillRect(440, 200, 360, 360); ctx.fillStyle = '#c9a13b'; ctx.fillRect(560, 380, 30, 4); ctx.fillStyle = '#f0e8d0'; ctx.fillRect(660, 396, 26, 18); } }
+}
+function paintCafe() {
+  wall(-60, 1060, '#e8c89a');
+  ctx.fillStyle = '#6a3a2a'; ctx.fillRect(-60, 330, 1120, 130);
+  winFrame(420, 170, 170, 130, false, true); winFrame(820, 170, 150, 130, false, true);
+  ctx.fillStyle = '#2a1a12'; ctx.fillRect(60, 140, 200, 90); ctx.fillStyle = '#f0e0c0'; ctx.font = `13px ${F_TALK}`; ctx.fillText('ЛАТТЕ ........ 4$', 74, 168); ctx.fillText('КАПУЧИНО .... 4$', 74, 190); ctx.fillText('«ЛУННЫЙ КОТ» . 7$', 74, 212);
+  ctx.fillStyle = '#4a2e1e'; ctx.fillRect(40, 380, 260, 80); ctx.fillStyle = '#8a5a3a'; ctx.fillRect(34, 372, 272, 10);
+  ctx.fillStyle = '#9a9aa0'; ctx.fillRect(80, 340, 40, 32);
+  for (const x of [480, 760]) { ctx.fillStyle = '#3a2418'; ctx.fillRect(x - 40, 408, 80, 7); ctx.fillRect(x - 3, 415, 6, 45); ctx.fillStyle = '#fff'; ctx.fillRect(x - 8, 398, 10, 10); }
+  for (const x of [200, 480, 760]) { ctx.strokeStyle = '#2a1a12'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, 40); ctx.lineTo(x, 130); ctx.stroke(); const g = ctx.createRadialGradient(x, 140, 4, x, 140, 90); g.addColorStop(0, 'rgba(255,210,130,.5)'); g.addColorStop(1, 'rgba(255,210,130,0)'); ctx.fillStyle = g; circle(x, 140, 90); ctx.fillStyle = '#c9a13b'; ctx.beginPath(); ctx.moveTo(x - 14, 140); ctx.lineTo(x + 14, 140); ctx.lineTo(x, 126); ctx.fill(); }
+  ctx.fillStyle = '#111'; ctx.save(); ctx.translate(640, 100); ctx.fillStyle = '#f5e7b0'; circle(0, 0, 22); ctx.fillStyle = '#e8c89a'; circle(8, -4, 18); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.moveTo(-8, 14); ctx.lineTo(-4, 4); ctx.lineTo(0, 12); ctx.fill(); ctx.restore();
+  ctx.fillStyle = '#5a3a2a'; ctx.fillRect(-60, FLOOR, 1120, 120);
+  ctx.fillStyle = 'rgba(0,0,0,.15)'; for (let x = -60; x < 1060; x += 40) ctx.fillRect(x, FLOOR + ((x / 40) % 2 ? 0 : 20), 40, 20);
+}
+function paintPark() {
+  const g = ctx.createLinearGradient(0, 40, 0, 460);
+  g.addColorStop(0, '#2a2a6a'); g.addColorStop(.6, '#c86a7a'); g.addColorStop(1, '#f0b07a');
+  ctx.fillStyle = g; ctx.fillRect(-60, 40, 1620, 420);
+  tile(LAYER_MID, camX * .4, -40, camX - 100, W / scn.zoom + 200);
+  ctx.fillStyle = '#e8e0d0'; ctx.fillRect(220, 180, 30, 280); ctx.fillRect(370, 180, 30, 280); ctx.fillRect(210, 150, 200, 40);
+  ctx.beginPath(); ctx.arc(310, 280, 60, Math.PI, 0); ctx.lineTo(370, 190); ctx.lineTo(250, 190); ctx.fill();
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(310, 290, 60, Math.PI, 0); ctx.lineTo(370, 460); ctx.lineTo(250, 460); ctx.fill();
+  for (const x of [80, 620, 980, 1380]) { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(x - 5, 330, 10, 130); ctx.fillStyle = '#2a4a2a'; circle(x, 300, 50); circle(x - 30, 330, 36); circle(x + 30, 325, 38); }
+  for (const x of [520, 900, 1260]) { ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x - 2, 320, 4, 140); const lg = ctx.createRadialGradient(x, 318, 3, x, 318, 80); lg.addColorStop(0, 'rgba(255,220,140,.7)'); lg.addColorStop(1, 'rgba(255,220,140,0)'); ctx.fillStyle = lg; circle(x, 318, 80); ctx.fillStyle = '#ffe8b0'; circle(x, 318, 6); }
+  ctx.fillStyle = '#9aa0a8'; ctx.beginPath(); ctx.ellipse(820, 440, 80, 16, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#6ab0d8'; ctx.beginPath(); ctx.ellipse(820, 436, 70, 11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,230,255,.8)'; ctx.lineWidth = 2; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(820, 400); ctx.quadraticCurveTo(820 + i * 16, 370 + Math.sin(frame * .2 + i) * 2, 820 + i * 30, 432); ctx.stroke(); }
+  ctx.fillStyle = '#5a3a22'; ctx.fillRect(1100, 428, 110, 7); ctx.fillRect(1100, 404, 110, 5); ctx.fillRect(1106, 435, 5, 25); ctx.fillRect(1199, 435, 5, 25);
+  ctx.fillStyle = '#6a6a5a'; ctx.fillRect(-60, FLOOR, 1620, 120);
+  ctx.fillStyle = '#4a6a3a'; ctx.fillRect(-60, FLOOR, 1620, 6);
+}
+function paintRaven() {
+  wall(-60, 2060, '#7a8690');
+  ctx.fillStyle = '#6a7680'; ctx.fillRect(-60, 360, 2120, 100);
+  for (let x = 80; x < 2000; x += 300) { ctx.fillStyle = '#3a4450'; ctx.fillRect(x, 100, 60, 40); ctx.strokeStyle = '#2a3036'; ctx.lineWidth = 3; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(x + 6 + i * 12, 100); ctx.lineTo(x + 6 + i * 12, 140); ctx.stroke(); } }
+  ctx.fillStyle = '#4a5460'; ctx.fillRect(150, 390, 180, 70); ctx.fillStyle = '#5a6470'; ctx.fillRect(144, 384, 192, 8);
+  ctx.fillStyle = '#2a2a30'; ctx.fillRect(170, 350, 44, 34); ctx.fillStyle = '#4a8a6a'; ctx.fillRect(174, 354, 36, 26);
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(40, 60, 400, 34); ctx.fillStyle = '#e8e8e0'; ctx.font = `14px ${F_DISP}`; ctx.fillText('ИНСТИТУТ РЕЙВЕНКРОФТ', 60, 84);
+  const cell = (x0, x1, glass, label) => {
+    ctx.fillStyle = '#4a525a'; ctx.fillRect(x0, 180, x1 - x0, 280);
+    ctx.fillStyle = '#5a6068'; ctx.fillRect(x0 + 20, 400, 100, 20); ctx.fillStyle = '#e0e0d8'; ctx.fillRect(x0 + 20, 392, 100, 10);
+    if (glass) { ctx.fillStyle = 'rgba(180,220,240,.18)'; ctx.fillRect(x0, 180, x1 - x0, 280); ctx.strokeStyle = 'rgba(220,240,255,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0 + 10, 200); ctx.lineTo(x0 + 40, 170 + 60); ctx.stroke(); }
+    ctx.fillStyle = '#20252a'; ctx.fillRect(x0 - 8, 170, x1 - x0 + 16, 12); ctx.fillRect(x0 - 8, 170, 8, 290); ctx.fillRect(x1, 170, 8, 290);
+    ctx.fillStyle = GOLD; ctx.fillRect(x0 + 10, 150, 110, 18); ctx.fillStyle = '#111'; ctx.font = `10px ${F_DISP}`; ctx.fillText(label, x0 + 16, 163);
+  };
+  cell(900, 1160, true, 'КАМЕРА 7');
+  cell(1280, 1540, false, 'КАМЕРА 8');
+  ctx.strokeStyle = '#20252a'; ctx.lineWidth = 4; for (let x = 1296; x < 1540; x += 18) { ctx.beginPath(); ctx.moveTo(x, 182); ctx.lineTo(x, 460); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(255,255,255,.65)'; ctx.font = `12px ${F_TALK}`; ctx.fillText('★ ГРИМЁРКА ★', 1360, 240); for (let i = 0; i < 6; i++) drawStar(1320 + i * 36, 280 + (i % 2) * 20, 5, 'rgba(255,255,255,.5)');
+  if (state !== 'dialog' || frame % 2) { const hx = 1428, hy = 356 + Math.sin(frame * .1) * 3; ctx.save(); ctx.globalAlpha = .7; ctx.fillStyle = '#5ff2a8'; circle(hx, hy, 5); ctx.fillStyle = 'rgba(95,242,168,.3)'; circle(hx, hy, 9); ctx.restore(); }
+  ctx.fillStyle = '#5a4a3a'; ctx.fillRect(700, 440, 100, 20);
+  ctx.fillStyle = '#20252a'; ctx.fillRect(1860, 200, 80, 260); ctx.strokeStyle = '#3a4450'; ctx.lineWidth = 3; for (let x = 1866; x < 1940; x += 12) { ctx.beginPath(); ctx.moveTo(x, 200); ctx.lineTo(x, 460); ctx.stroke(); }
+  ctx.fillStyle = '#5a6268'; ctx.fillRect(-60, FLOOR, 2120, 120);
+  ctx.fillStyle = GOLD; ctx.fillRect(-60, FLOOR + 14, 2120, 4);
+}
+function paintRoofWorld(uni) {
+  if (uni) {
+    ctx.fillStyle = '#241e44'; ctx.fillRect(330, 250, 240, 212);
+    ctx.fillStyle = '#2e2854'; ctx.fillRect(320, 240, 260, 14);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) { ctx.fillStyle = r === 1 && c === 3 ? '#ffd890' : '#1a1636'; ctx.fillRect(344 + c * 38, 270 + r * 44, 22, 26); }
+    ctx.fillStyle = 'rgba(255,216,144,.18)'; circle(469, 327, 46);
+    ctx.fillStyle = '#c9b24a'; ctx.font = `9px ${F_DISP}`; ctx.fillText('ESU · ЛАБОРАТОРИЯ', 380, 236);
+  }
+  ctx.fillStyle = '#1b1636'; ctx.fillRect(-60, FLOOR, 1080, 120);
+  ctx.fillStyle = '#3b3274'; ctx.fillRect(-60, FLOOR - 4, 1080, 10);
+  ctx.strokeStyle = '#3a2a2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(620, FLOOR); ctx.lineTo(626, FLOOR - 40); ctx.moveTo(670, FLOOR); ctx.lineTo(664, FLOOR - 40); ctx.stroke();
+  ctx.fillStyle = '#5b3a2c'; ctx.fillRect(610, FLOOR - 104, 70, 64); ctx.fillStyle = '#3a2a2a'; ctx.beginPath(); ctx.moveTo(606, FLOOR - 104); ctx.lineTo(645, FLOOR - 128); ctx.lineTo(684, FLOOR - 104); ctx.fill();
+  ctx.fillStyle = '#3c3a58'; ctx.fillRect(120, FLOOR - 26, 50, 26);
+}
+function paintCivil() {
+  const th = scn.theme;
+  if (th === 'home') paintHome(!!scn.night);
+  else if (th === 'bugle') paintBugle();
+  else if (th === 'lab') paintLab(!!scn.demo, !!scn.night);
+  else if (th === 'cafe') paintCafe();
+  else if (th === 'park') paintPark();
+  else if (th === 'raven') paintRaven();
+  else if (th === 'roof') paintRoofWorld(scn.uni);
+}
+
+// fight backdrops (screen coordinates)
+function drawPrisonBg() {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a3036'); g.addColorStop(1, '#4a525a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const off = camX * .5;
+  for (let i = Math.floor(off / 160) - 1; i < Math.floor(off / 160) + 8; i++) {
+    const x = i * 160 - off;
+    ctx.fillStyle = '#20262c'; ctx.fillRect(x + 20, 120, 110, 300);
+    ctx.strokeStyle = '#3a444e'; ctx.lineWidth = 4; for (let k = 0; k < 7; k++) { ctx.beginPath(); ctx.moveTo(x + 28 + k * 16, 120); ctx.lineTo(x + 28 + k * 16, 420); ctx.stroke(); }
+    ctx.fillStyle = GOLD; ctx.fillRect(x + 40, 100, 70, 14);
+  }
+  ctx.fillStyle = `rgba(255,40,40,${.08 + .08 * Math.sin(frame * .15)})`; ctx.fillRect(0, 0, W, H);
+}
+function drawLabBg() {
+  ctx.fillStyle = '#1c2029'; ctx.fillRect(0, 0, W, H);
+  const off = camX * .5;
+  for (let i = Math.floor(off / 120) - 1; i < Math.floor(off / 120) + 10; i++) { const x = i * 120 - off; ctx.fillStyle = i % 2 ? '#232833' : '#262c38'; ctx.fillRect(x, 40, 116, 420); ctx.fillStyle = '#3a4050'; ctx.fillRect(x, 120, 120, 6); }
+  const rx = 900 - camX * .3;
+  ctx.strokeStyle = '#4a5060'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(rx, 240, 120, 0, Math.PI * 2); ctx.stroke();
+  const gg = ctx.createRadialGradient(rx, 240, 4, rx, 240, 90); gg.addColorStop(0, 'rgba(255,190,80,.35)'); gg.addColorStop(1, 'rgba(255,190,80,0)'); ctx.fillStyle = gg; circle(rx, 240, 90);
+  ctx.fillStyle = `rgba(255,60,40,${.06 + .06 * Math.sin(frame * .12)})`; ctx.fillRect(0, 0, W, H);
+}
+function drawFightBg() {
+  const th = mode === 'race' || mode === 'kboss' ? 'city' : lvl.def.theme;
+  if (th === 'city') drawNight();
+  else if (th === 'prison') drawPrisonBg();
+  else drawLabBg();
+}
+function drawSolids() {
+  const th = mode === 'race' || mode === 'kboss' ? 'city' : lvl.def.theme;
+  const left = camX - 60, right = camX + W + 60;
+  for (const b of solids) {
+    if (b.x + b.w < left || b.x > right) continue;
+    if (b.kind === 'barrier') { drawBarrier(b); continue; }
+    if (b.kind === 'plat') {
+      ctx.fillStyle = th === 'prison' ? '#6a727a' : th === 'lab' ? '#7a8090' : '#5a5470'; ctx.fillRect(b.x, b.top, b.w, 6);
+      ctx.strokeStyle = th === 'city' ? '#3a3552' : '#3a4048'; ctx.lineWidth = 2; ctx.beginPath();
+      for (let x = b.x; x < b.x + b.w; x += 20) { ctx.moveTo(x, b.top + 6); ctx.lineTo(x + 10, b.top + 18); ctx.lineTo(x + 20, b.top + 6); }
+      ctx.stroke(); continue;
+    }
+    if (b.kind === 'block' && b.bot - b.top > 400) { ctx.fillStyle = '#0d0a18'; ctx.fillRect(b.x, 0, b.w, H); continue; }
+    if (th === 'city') {
+      ctx.fillStyle = '#1b1636'; ctx.fillRect(b.x, b.top, b.w, H - b.top + 10);
+      const x0 = Math.max(b.x + 14, left), x1 = Math.min(b.x + b.w - 20, right);
+      for (let r = 0, yy = b.top + 34; yy < H; r++, yy += 36)
+        for (let c = Math.floor((x0 - b.x - 14) / 30), xx = b.x + 14 + c * 30; xx < x1; c++, xx += 30) { ctx.fillStyle = hash(Math.round(b.x) * 7 + r, c) < .26 ? '#f4cf68' : '#2a2352'; ctx.fillRect(xx, yy, 14, 18); }
+      ctx.fillStyle = '#3b3274'; ctx.fillRect(b.x - 4, b.top - 2, b.w + 8, 10);
+      ctx.fillStyle = '#5a4ea8'; ctx.fillRect(b.x - 4, b.top - 2, b.w + 8, 3);
+    } else if (th === 'prison') {
+      ctx.fillStyle = '#5a6268'; ctx.fillRect(b.x, b.top, b.w, H - b.top + 10);
+      ctx.fillStyle = GOLD; ctx.fillRect(b.x, b.top + 12, b.w, 4);
+    } else {
+      ctx.fillStyle = '#3a3f4a'; ctx.fillRect(b.x, b.top, b.w, H - b.top + 10);
+      ctx.fillStyle = '#4a5060'; ctx.fillRect(b.x, b.top, b.w, 5);
+    }
+  }
+}
+function drawBarrier(b) {
+  if (b.fade < .02) return;
+  ctx.save(); ctx.globalAlpha = b.fade;
+  const col = lvl.def.theme === 'prison' ? '255,80,60' : lvl.def.theme === 'lab' ? '255,190,80' : '120,160,255';
+  const g = ctx.createLinearGradient(b.x - 30, 0, b.x + b.w + 30, 0);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(.5, `rgba(${col},.5)`); g.addColorStop(1, `rgba(${col},0)`);
+  ctx.fillStyle = g; ctx.fillRect(b.x - 30, 0, b.w + 60, H);
+  ctx.strokeStyle = `rgba(${col},.9)`; ctx.lineWidth = 2;
+  for (let y = (frame * 2) % 40; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(b.x, y); ctx.lineTo(b.x + b.w, y + 10); ctx.stroke(); }
+  if (b.active) {
+    const n = enemies.filter(e => !e.dead && e.sec === b.sec).length;
+    ctx.save(); ctx.translate(b.x + b.w / 2, 250); ctx.rotate(-Math.PI / 2);
+    ctx.font = `13px ${F_DISP}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(n > 0 ? `ВРАГОВ: ${n}` : 'ОТКРЫВАЕТСЯ', 0, 5);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+// ============================================================ render
+function render() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  if (state === 'card') { drawCard(); drawFade(); return; }
+  if (state === 'credits') { drawCredits(); drawFade(); return; }
+  if (state === 'tbc') { drawTbc(); drawFade(); return; }
+  if (state === 'title' || !mode) { drawTitle(); drawFade(); return; }
+  if (mode === 'civil') renderCivil(); else renderFight();
+  if (state === 'calib' && calib) drawCalib();
+  drawHUD();
+  if (state === 'dialog' && dialog) drawDialog();
+  if (state === 'pause') overlay('ПАУЗА', COARSE ? 'Коснись экрана, чтобы продолжить' : 'P или Enter — продолжить');
+  if (state === 'over') overlay('ПАУК ПОВЕРЖЕН', overT > 40 ? (COARSE ? 'Коснись экрана — к контрольной точке' : 'Enter — к контрольной точке') : '', '#ff4d5e');
+  for (const q of pops) if (q.screen) drawPopOne(q);
+  drawFade();
+}
+function renderCivil() {
+  const z = scn.zoom;
+  ctx.fillStyle = '#0d0b16'; ctx.fillRect(0, 0, W, H);
+  if (scn.theme === 'roof') drawNight(camX * z);
+  ctx.save();
+  ctx.translate(0, 505); ctx.scale(z, z); ctx.translate(-camX, -FLOOR);
+  paintCivil();
+  // characters
+  const near = P.skin !== 'none' && state === 'play' ? nearItem() : null;
+  for (const it of scn.items) {
+    const talking = state === 'dialog';
+    if (it.who) {
+      const o = PEOPLE[it.who];
+      let face = it.face;
+      if (it.who === 'otto' && scn.id === 'post') face = -1;
+      drawPerson(it.x, FLOOR, face, o, { sit: it.sit, anim: frame * .05, talk: talking, armsMode: scn.id === 'post' ? ottoArms : 'idle' });
+    } else if (it.cat) {
+      drawCat({ x: it.x - 11, y: FLOOR - 56, w: 22, h: 56, face: it.face, mode: 'idle', t: frame, run: false });
+    }
+    if (it.label && P.skin !== 'none') {
+      const iy = it.iy || (it.sit ? FLOOR - 92 : FLOOR - 92);
+      const by = iy - 8 + Math.sin(frame * .08 + it.x) * 2;
+      if (!it.done) {
+        ctx.fillStyle = it.req ? GOLD : '#ffffff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(it.x, by, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#111'; ctx.font = `bold 10px ${F_UI}`; ctx.textAlign = 'center'; ctx.fillText(it.req ? '!' : '…', it.x, by + 3.5); ctx.textAlign = 'left';
+      }
+      if (near === it) {
+        ctx.font = `9px ${F_DISP}`; ctx.textAlign = 'center';
+        const t = (COARSE ? 'УДАР · ' : 'J · ') + it.label.toUpperCase();
+        const tw = ctx.measureText(t).width;
+        ctx.fillStyle = 'rgba(10,8,20,.85)'; ctx.fillRect(it.x - tw / 2 - 5, by - 26, tw + 10, 14);
+        ctx.fillStyle = '#fff'; ctx.fillText(t, it.x, by - 16); ctx.textAlign = 'left';
+      }
+    }
+  }
+  if (scn.exit && !scn.items.some(i => i.req && !i.done)) {
+    const x = scn.exit.x, y = 250 + Math.sin(frame * .1) * 4;
+    ctx.fillStyle = GOLD; ctx.beginPath(); ctx.moveTo(x - 8, y - 8); ctx.lineTo(x + 8, y - 8); ctx.lineTo(x, y + 4); ctx.fill();
+    ctx.font = `9px ${F_DISP}`; ctx.textAlign = 'center'; ctx.fillText(scn.exit.label.toUpperCase(), x, y - 14); ctx.textAlign = 'left';
+  }
+  if (P.skin === 'spidey') drawSpidey(P);
+  else if (P.skin !== 'none') {
+    const o = PEOPLE[P.skin];
+    drawPerson(P.x + 12, P.y + P.h, P.face, o, { walk: Math.abs(P.vx) > .3, anim: P.anim });
+  }
+  if (scn.id === 'home_pm' && state === 'dialog' && dialog && dialog.i >= 2) {
+    const fx = P.x + 60;
+    drawPerson(fx, FLOOR, -1, PEOPLE.felicia, { anim: 0 });
+  }
+  ctx.restore();
+}
+function renderFight() {
+  drawFightBg();
+  const sx = shake ? (Math.random() - .5) * shake : 0, sy = shake ? (Math.random() - .5) * shake : 0;
+  ctx.save(); ctx.translate(-Math.round(camX) + sx, sy);
+  drawSolids();
+  for (const k of pickups) drawPickup(k);
+  for (const e of enemies) if (e.x + 80 > camX && e.x - 80 < camX + W) (e.type === 'brute' ? drawBrute : drawThug)(e);
+  if (mode === 'race') {
+    RINGS.forEach(([x, y], i) => {
+      if (i < race.ring) return;
+      const cur = i === race.ring;
+      ctx.strokeStyle = cur ? GOLD : 'rgba(255,216,74,.35)'; ctx.lineWidth = cur ? 5 : 3;
+      ctx.beginPath(); ctx.ellipse(x, y, 22, 40, 0, 0, Math.PI * 2); ctx.stroke();
+      if (cur) { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x, y, 28 + Math.sin(frame * .2) * 3, 46, 0, 0, Math.PI * 2); ctx.stroke(); }
+    });
+  }
+  if (CAT) drawCat(CAT);
+  if (KG) drawKang(KG);
+  drawSpidey(P);
+  for (const w of waves) { ctx.fillStyle = 'rgba(232,176,112,.85)'; ctx.beginPath(); ctx.moveTo(w.x - 14, KFY); ctx.quadraticCurveTo(w.x, KFY - 30, w.x + 14, KFY); ctx.fill(); }
+  for (const w of webs) { ctx.strokeStyle = '#f2f2ff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(w.x - Math.sign(w.vx) * 22, w.y); ctx.lineTo(w.x, w.y); ctx.stroke(); ctx.fillStyle = '#fff'; circle(w.x, w.y, 4); }
+  for (const b of bullets) { ctx.fillStyle = b.tray ? '#9aa0aa' : GOLD; ctx.fillRect(b.x - 5, b.y - (b.tray ? 3 : 1.5), 10, b.tray ? 5 : 3); }
+  for (const q of parts) {
+    ctx.globalAlpha = Math.max(0, q.life / q.max);
+    if (q.claw) { ctx.strokeStyle = q.color; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(q.x - 8, q.y - 14); ctx.lineTo(q.x + 6, q.y + 14); ctx.stroke(); }
+    else { ctx.fillStyle = q.color; ctx.fillRect(q.x, q.y, q.size, q.size); }
+  }
+  ctx.globalAlpha = 1;
+  for (const q of pops) if (!q.screen) drawPopOne(q);
+  ctx.restore();
+  if (mode === 'race' && race.count > 0) {
+    ctx.textAlign = 'center'; ctx.font = `64px ${F_DISP}`; ctx.lineWidth = 10; ctx.strokeStyle = '#000';
+    const n = String(Math.ceil(race.count / 60)); ctx.strokeText(n, W / 2, H / 2); ctx.fillStyle = GOLD; ctx.fillText(n, W / 2, H / 2); ctx.textAlign = 'left';
+  }
+}
+function drawPopOne(q) {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const k = q.life > 42 ? 1 + (q.life - 42) * .06 : 1;
+  ctx.globalAlpha = Math.min(1, q.life / 15);
+  ctx.font = `${Math.round(q.size * k)}px ${F_DISP}`;
+  ctx.lineWidth = 5; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
+  ctx.strokeText(q.text, q.x, q.y); ctx.fillStyle = q.color; ctx.fillText(q.text, q.x, q.y);
+  ctx.globalAlpha = 1; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+function heart(x, y, s, full, col = '#e02a3c') {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.beginPath(); ctx.moveTo(0, 6); ctx.bezierCurveTo(-10, -1, -6, -10, 0, -4); ctx.bezierCurveTo(6, -10, 10, -1, 0, 6);
+  ctx.fillStyle = full ? col : '#2a2352'; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = '#000'; ctx.stroke();
+  ctx.restore();
+}
+function drawHUD() {
+  if (!P) return;
+  if (mode === 'civil') {
+    if (P.skin === 'none') return;
+    const obj = civilObjective();
+    ctx.font = `12px ${F_UI}`;
+    const tw = Math.max(ctx.measureText('ЦЕЛЬ: ' + obj).width, 160);
+    ctx.fillStyle = 'rgba(8,6,22,.75)'; ctx.fillRect(12, 12, tw + 24, 46);
+    ctx.font = `11px ${F_DISP}`; ctx.fillStyle = ROSE; ctx.fillText(CHAPTERS[chapter].num + ' · ' + CHAPTERS[chapter].title, 22, 30);
+    ctx.font = `13px ${F_UI}`; ctx.fillStyle = '#efe9ff'; if (obj) ctx.fillText('ЦЕЛЬ: ' + obj, 22, 49);
+    drawLoveMeter();
+  } else {
+    ctx.fillStyle = 'rgba(8,6,22,.7)'; ctx.fillRect(12, 12, 200, 44);
+    for (let i = 0; i < P.max; i++) heart(30 + i * 29, 28, 1.4, i < P.hp);
+    ctx.font = `12px ${F_UI}`; ctx.fillStyle = '#cfc7f2'; ctx.fillText(`НОКАУТЫ: ${stats.kos}`, 22, 50);
+    if (mode === 'fight') {
+      const n = enemies.filter(e => !e.dead && e.sec === lvl.sec).length;
+      ctx.fillStyle = 'rgba(8,6,22,.7)'; ctx.fillRect(W - 262, 12, 250, 44);
+      ctx.font = `11px ${F_DISP}`; ctx.fillStyle = ROSE; ctx.fillText(`${CHAPTERS[chapter].num} · УЧАСТОК ${lvl.sec + 1}/${lvl.sections.length}`, W - 250, 29);
+      ctx.font = `12px ${F_UI}`; ctx.fillStyle = n ? '#ffd0d6' : '#b8ffd8'; ctx.fillText(n ? `ОСТАЛОСЬ ВРАГОВ: ${n}` : 'УЧАСТОК ЗАЧИЩЕН', W - 250, 47);
+    }
+    if (mode === 'race') {
+      ctx.fillStyle = 'rgba(8,6,22,.75)'; ctx.fillRect(W - 292, 12, 280, 58);
+      ctx.font = `11px ${F_DISP}`; ctx.fillStyle = GOLD; ctx.fillText(`КОЛЬЦА: ${race.ring}/${RINGS.length}`, W - 280, 30);
+      ctx.fillStyle = '#2a2352'; ctx.fillRect(W - 280, 38, 256, 8); ctx.fillRect(W - 280, 52, 256, 8);
+      ctx.fillStyle = GOLD; ctx.fillRect(W - 280, 38, 256 * race.ring / RINGS.length, 8);
+      ctx.fillStyle = ROSE; ctx.fillRect(W - 280, 52, 256 * race.catT, 8);
+      ctx.font = `9px ${F_UI}`; ctx.fillStyle = '#cfc7f2'; ctx.fillText('ТЫ', W - 20, 45); ctx.fillText('ОНА', W - 22, 59);
+    }
+    if (KG) {
+      const bw = 300, bx = W / 2 - bw / 2;
+      ctx.fillStyle = 'rgba(8,6,22,.75)'; ctx.fillRect(bx - 10, 62, bw + 20, 36);
+      ctx.font = `12px ${F_DISP}`; ctx.fillStyle = '#e8b070'; ctx.textAlign = 'center'; ctx.fillText('КЕНГУРУ', W / 2, 78); ctx.textAlign = 'left';
+      ctx.fillStyle = '#2a2352'; ctx.fillRect(bx, 84, bw, 8); ctx.fillStyle = KG.flash > 0 ? '#fff' : '#e8b070'; ctx.fillRect(bx, 84, bw * KG.hp / KG.max, 8);
+    }
+  }
+  if (hint && hint.t > 0 && state === 'play') {
+    ctx.globalAlpha = Math.min(1, hint.t / 30);
+    ctx.font = `20px ${F_TALK}`;
+    const tw = Math.min(W - 60, ctx.measureText(hint.text).width);
+    const y = KG ? 104 : mode === 'race' ? 80 : 68;
+    ctx.fillStyle = GOLD; ctx.fillRect(W / 2 - tw / 2 - 14, y, tw + 28, 32);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(W / 2 - tw / 2 - 14, y, tw + 28, 32);
+    ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(hint.text, W / 2, y + 17, W - 60);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1;
+  }
+}
+function drawLoveMeter() {
+  if (chapter < 1 && love === 0) return;
+  ctx.fillStyle = 'rgba(8,6,22,.75)'; ctx.fillRect(W - 206, 12, 194, 30);
+  ctx.font = `11px ${F_DISP}`; ctx.fillStyle = ROSE; ctx.fillText('ФЕЛИЦИЯ', W - 196, 32);
+  const n = Math.min(10, love);
+  for (let i = 0; i < 6; i++) heart(W - 104 + i * 15, 27, .8, i < Math.ceil(n * 6 / 10), ROSE);
+}
+function wrap(text, maxW) {
+  const words = text.split(' '), lines = []; let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line);
+  return lines;
+}
+function drawPortrait(who, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  const face = (WHO[who] && WHO[who].face) || who;
+  if (face === 'spidey') spideyHead();
+  else if (face === 'cat') { ctx.translate(1, -2); catHead(false); }
+  else if (face === 'felicia') { ctx.translate(1, -2); catHead(true); }
+  else if (face === 'kang') kangHead();
+  else if (face === 'arms') { ctx.fillStyle = '#3a3e48'; circle(0, 0, 9); ctx.strokeStyle = '#9aa0aa'; ctx.lineWidth = 2.4; for (let c = -1; c <= 1; c++) { const a = -Math.PI / 2 + c * .7; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 14, Math.sin(a) * 14); ctx.stroke(); } ctx.fillStyle = '#e8d24a'; circle(0, 0, 3); }
+  else if (face === 'voice') { ctx.fillStyle = '#2a2a30'; rr(-7, -12, 14, 24, 3); ctx.fillStyle = '#6a8aff'; ctx.fillRect(-5, -9, 10, 16); }
+  else if (PEOPLE[face]) humanHead(PEOPLE[face]);
+  ctx.restore();
+}
+function drawDialog() {
+  const d = dialog, ln = d.lines[d.i];
+  if (!ln) return;
+  const who = WHO[ln.s] || WHO.narr;
+  const bx = 24, by = H - 150, bw = W - 48, bh = 128;
+  const narr = ln.s === 'narr';
+  ctx.fillStyle = who.accent || '#8a4fd6'; ctx.fillRect(bx + 6, by + 6, bw, bh);
+  ctx.fillStyle = narr ? GOLD : '#fffbe8'; ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.strokeRect(bx, by, bw, bh);
+  let tx = bx + 22;
+  if (!narr) {
+    const px = bx + 14, py = by + 14, ps = 100;
+    ctx.fillStyle = who.bg; ctx.fillRect(px, py, ps, ps);
+    ctx.save(); ctx.beginPath(); ctx.rect(px, py, ps, ps); ctx.clip();
+    if (who.accent === ROSE) { ctx.fillStyle = 'rgba(255,90,122,.2)'; for (let i = 0; i < 6; i++) ctx.fillRect(px + i * 20, py, 8, ps); }
+    drawPortrait(ln.s, px + ps / 2, py + ps / 2 + 8, 3.6);
+    ctx.restore();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(px, py, ps, ps);
+    tx = px + ps + 20;
+    ctx.font = `14px ${F_DISP}`;
+    const nw = ctx.measureText(who.n).width;
+    ctx.fillStyle = who.bg; ctx.fillRect(tx - 6, by - 16, nw + 20, 28);
+    ctx.strokeStyle = '#000'; ctx.strokeRect(tx - 6, by - 16, nw + 20, 28);
+    ctx.fillStyle = who.accent && ln.s !== 'cat' && ln.s !== 'felicia' && ln.s !== 'sms' ? who.accent : '#fff'; ctx.fillText(who.n, tx + 4, by + 4);
+  }
+  if (ln.choice) {
+    const rects = choiceRects();
+    ln.choice.forEach((o, i) => {
+      const r = rects[i], sel = i === d.sel;
+      ctx.fillStyle = sel ? '#2a1f4a' : 'rgba(42,31,74,.12)'; ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.font = `20px ${F_TALK}`; ctx.fillStyle = sel ? '#fff' : '#222';
+      ctx.fillText(`${i + 1}. ${o.t}`, r.x + 12, r.y + 21, r.w - 60);
+      if (o.love > 0 && sel) { ctx.fillStyle = ROSE; ctx.font = `14px ${F_UI}`; ctx.fillText('♥', r.x + r.w - 22, r.y + 20); }
+    });
+    ctx.font = `11px ${F_UI}`; ctx.fillStyle = '#6a6080'; ctx.fillText(COARSE ? 'Коснись варианта' : '↑ ↓ или 1–3, затем Enter', bx + bw - 190, by + bh - 6);
+    return;
+  }
+  ctx.font = `24px ${F_TALK}`; ctx.fillStyle = '#111';
+  const shown = ln.t.slice(0, Math.floor(d.ch));
+  const lines = wrap(ln.t, bx + bw - tx - 30);
+  let used = 0;
+  lines.forEach((l, i) => { const part = shown.slice(used, used + l.length); used += l.length + 1; ctx.fillText(part, tx, by + (narr ? 40 : 40) + i * 29); });
+  if (d.ch >= ln.t.length && frame % 40 < 26) {
+    ctx.fillStyle = '#e02a3c';
+    ctx.beginPath(); ctx.moveTo(bx + bw - 30, by + bh - 26); ctx.lineTo(bx + bw - 16, by + bh - 18); ctx.lineTo(bx + bw - 30, by + bh - 10); ctx.fill();
+  }
+}
+function overlay(title, sub, color = GOLD) {
+  ctx.fillStyle = 'rgba(6,4,18,.72)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `46px ${F_DISP}`; ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
+  ctx.strokeText(title, W / 2, H / 2 - 20); ctx.fillStyle = color; ctx.fillText(title, W / 2, H / 2 - 20);
+  if (sub) { ctx.font = `24px ${F_TALK}`; ctx.fillStyle = '#efe9ff'; ctx.fillText(sub, W / 2, H / 2 + 36); }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+function drawCard() {
+  ctx.fillStyle = '#0a0812'; ctx.fillRect(0, 0, W, H);
+  const open = clamp(card.t / 40, 0, 1);
+  // newspaper-style card
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate((1 - open) * -.2); ctx.scale(.6 + open * .4, .6 + open * .4);
+  ctx.fillStyle = '#f2ecd8'; ctx.fillRect(-340, -190, 680, 380);
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-340, -190, 680, 56);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `22px ${F_DISP}`; ctx.fillStyle = '#f2ecd8'; ctx.fillText('ДВОЙНАЯ ЖИЗНЬ', 0, -162);
+  ctx.font = `22px ${F_DISP}`; ctx.fillStyle = RED; ctx.fillText(card.num, 0, -90);
+  ctx.font = `40px ${F_DISP}`; ctx.fillStyle = '#1a1a1a'; ctx.fillText(card.title, 0, -30, 620);
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-300, 8, 600, 3);
+  ctx.font = `22px ${F_TALK}`; ctx.fillStyle = '#4a4a4a'; ctx.fillText(card.sub, 0, 48, 620);
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let i = 0; i < 5; i++) ctx.fillRect(-300, 90 + i * 16, 600 - (i % 2) * 120, 6);
+  ctx.restore();
+  if (card.t > 40 && frame % 60 < 40) { ctx.textAlign = 'center'; ctx.font = `14px ${F_DISP}`; ctx.fillStyle = '#efe9ff'; ctx.fillText(COARSE ? 'КОСНИСЬ ЭКРАНА' : 'ENTER', W / 2, H - 30); }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+function drawTitle() {
+  // split: day (Peter) and night (Spider-Man)
+  ctx.save(); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(560, 0); ctx.lineTo(400, H); ctx.lineTo(0, H); ctx.closePath(); ctx.clip();
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#8cc8ff'); g.addColorStop(1, '#f0d8b0');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff6c0'; circle(120, 90, 40);
+  tile(LAYER_DAY, frame * .2, 0);
+  ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.moveTo(560, 0); ctx.lineTo(W, 0); ctx.lineTo(W, H); ctx.lineTo(400, H); ctx.closePath(); ctx.clip();
+  drawNight(frame * 2);
+  ctx.restore();
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(560, 0); ctx.lineTo(400, H); ctx.stroke();
+  ctx.fillStyle = '#1b1636'; ctx.fillRect(0, 440, W, 100);
+  ctx.save(); ctx.translate(300, 440); ctx.scale(2, 2); drawPerson(0, 0, 1, PEOPLE.peter, { anim: 0 }); ctx.restore();
+  ctx.save(); ctx.translate(640, 440); ctx.scale(2, 2); drawSpidey({ x: -12, y: -54, w: 24, h: 54, face: -1, vx: 0, vy: 0, onGround: true, anim: 0, punchT: 0, shootT: 0, swing: null, inv: 0 }, { still: true }); ctx.restore();
+  ctx.save(); ctx.translate(720, 440); ctx.scale(2, 2); drawCat({ x: -11, y: -56, w: 22, h: 56, face: -1, mode: 'idle', t: frame, run: false }); ctx.restore();
+  ctx.save(); ctx.globalAlpha = .35; ctx.translate(880, 300); ctx.scale(1.6, 1.6); ottoArmsDraw(1, 'rise', frame); ctx.restore();
+  ctx.textAlign = 'left'; ctx.lineJoin = 'round';
+  ctx.font = `44px ${F_DISP}`; ctx.lineWidth = 10; ctx.strokeStyle = '#000';
+  ctx.strokeText('ЧЕЛОВЕК-ПАУК 3', 40, 90); ctx.fillStyle = RED; ctx.fillText('ЧЕЛОВЕК-ПАУК 3', 40, 90);
+  ctx.font = `30px ${F_DISP}`; ctx.lineWidth = 8;
+  ctx.strokeText('ДВОЙНАЯ ЖИЗНЬ', 44, 136); ctx.fillStyle = '#fff'; ctx.fillText('ДВОЙНАЯ ЖИЗНЬ', 44, 136);
+  ctx.font = `20px ${F_TALK}`; ctx.lineWidth = 5; ctx.strokeText('Днём — Питер Паркер. Ночью — Человек-паук.', 46, 172); ctx.fillStyle = '#fffbe8'; ctx.fillText('Днём — Питер Паркер. Ночью — Человек-паук.', 46, 172);
+  if (frame % 60 < 42) {
+    ctx.font = `14px ${F_DISP}`; ctx.fillStyle = GOLD; ctx.lineWidth = 5; ctx.strokeStyle = '#000';
+    let t;
+    if (menuSave && menuSave.ch > 0) t = COARSE ? `ПРЫЖОК — ПРОДОЛЖИТЬ (${CHAPTERS[menuSave.ch].num}) · УДАР — ЗАНОВО` : `ENTER — ПРОДОЛЖИТЬ (${CHAPTERS[menuSave.ch].num}) · J — НОВАЯ ИГРА`;
+    else t = COARSE ? 'КОСНИСЬ ЭКРАНА, ЧТОБЫ НАЧАТЬ' : 'НАЖМИ ENTER, ЧТОБЫ НАЧАТЬ';
+    ctx.strokeText(t, 46, 505); ctx.fillText(t, 46, 505);
+  }
+}
+function drawTbc() {
+  ctx.fillStyle = '#06050c'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.translate(W / 2, 490); ctx.scale(2.3, 2.3);
+  ctx.globalAlpha = .9;
+  drawPerson(0, 0, 1, { ...PEOPLE.otto, skin: '#1a1a22', hairC: '#0a0a10', coat: '#15151c', shirt: '#101016', pants: '#101016' }, { armsMode: 'cobra' });
+  ctx.restore();
+    ctx.textAlign = 'center';
+  ctx.font = `36px ${F_DISP}`; ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round';
+  ctx.strokeText('ПРОДОЛЖЕНИЕ СЛЕДУЕТ', W / 2, 70); ctx.fillStyle = '#e8d24a'; ctx.fillText('ПРОДОЛЖЕНИЕ СЛЕДУЕТ', W / 2, 70);
+  ctx.font = `20px ${F_TALK}`; ctx.fillStyle = '#cfc7f2';
+  const sec = Math.round(stats.time / 60);
+  ctx.fillText(`Бой: ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}  ·  Нокауты: ${stats.kos}  ·  Сердце Фелиции: ${love} ♥`, W / 2, 110);
+  if (overT > 90) { ctx.font = `18px ${F_TALK}`; ctx.fillStyle = ROSE; ctx.fillText(COARSE ? 'Коснись экрана — в главное меню' : 'Enter — в главное меню', W / 2, 510); }
+  ctx.textAlign = 'left';
+}
+function drawFade() { if (fadeA > 0) { ctx.fillStyle = `rgba(0,0,0,${fadeA})`; ctx.fillRect(0, 0, W, H); } }
+
+// ============================================================ loop
+let last = performance.now(), acc = 0;
+const STEP = 1000 / 60;
+function loop(now) {
+  acc += Math.min(100, now - last); last = now;
+  while (acc >= STEP) {
+    update();
+    for (const k in pressed) pressed[k] = false;
+    acc -= STEP;
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') state = 'pause'; });
+if (document.fonts && document.fonts.load) ['20px Neucha', '20px "Rubik Mono One"', '20px Rubik'].forEach(f => document.fonts.load(f, 'АБВ').catch(() => {}));
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
