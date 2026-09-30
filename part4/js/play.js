@@ -498,7 +498,7 @@ function heroHits() {
     if (pr.kind === 'throw' && !pr.held && !a.hit.has(pr) && overlap(box, { x: pr.x - 12, y: pr.y - 12, w: 24, h: 24 })) { a.hit.add(pr); pr.held = true; pr.vx = p.face * 12; pr.vy = -4; pr.thrown = 1; SFX.hit(); }
   }
   if (L.boss && L.boss.heroHit) L.boss.heroHit(box, a);
-  if (L.events) for (const ev of L.events) if (ev.onHit) ev.onHit(box, a);
+  if (L.events) for (const ev of L.events) { const T = EVENT_TYPES[ev.type]; if (ev.st === 'active' && T.onHit) T.onHit(ev, box, a); }
 }
 
 // ============================================================ enemies
@@ -946,8 +946,20 @@ function finishLevel() {
   const cb = L.onDone;
   if (cb) cb();
 }
+// on touch screens there is no separate action button: a punch near something usable acts instead
+function canInteract() {
+  if (!L || L.lockInput) return false;
+  for (const ev of L.events) {
+    if (ev.hidden) continue;
+    const T = EVENT_TYPES[ev.type];
+    if (ev.st === 'idle' && !T.autoStart && !P.carry && evNear(ev)) return true;
+    if (ev.st === 'active' && T.wantsAct && T.wantsAct(ev)) return true;
+  }
+  return !!nearestCivGreet();
+}
 function updateLevel() {
   if (hitstop > 0) { hitstop--; updateFx(); return; }
+  if (pressed.punch && !pressed.act && canInteract()) { pressed.act = true; pressed.punch = false; }
   stats.time++; L.t++;
   updateHero();
   if (state !== 'play') return;
@@ -1121,7 +1133,7 @@ function updateEvents() {
     if (ev.st === 'done') continue;
     const T = EVENT_TYPES[ev.type];
     if (ev.st === 'idle') {
-      if (T.autoStart ? evNear(ev, T.autoStart) : (evNear(ev) && pressed.act)) { ev.st = 'active'; T.start(ev); }
+      if (T.autoStart ? evNear(ev, T.autoStart) : (evNear(ev) && pressed.act && !P.carry)) { ev.st = 'active'; T.start(ev); }
     } else T.tick(ev);
   }
 }
@@ -1141,24 +1153,57 @@ function drawEvents() {
 const EVENT_TYPES = {
   // purse snatcher chase
   thief: {
-    start(ev) { ev.th = { x: ev.x + 40, y: ev.y - 72, w: 26, h: 72, vx: 0, vy: 0, face: 1, caught: false, anim: 0 }; ev.bubble = 'ДЕРЖИТЕ ВОРА! МОЯ СУМКА!'; ev.bubbleT = 150; showHint('Догони вора и останови его паутиной или ударом', 300); },
+    start(ev) {
+      if (ev.minX == null) ev.minX = ev.x - 60;
+      ev.th = { x: ev.x + 40, y: ev.y - 72, w: 26, h: 72, vx: 0, vy: 0, face: 1, dir: 1, caught: false, anim: 0, stuck: 0, t: 0, lastX: ev.x + 40 };
+      ev.bubble = 'ДЕРЖИТЕ ВОРА! МОЯ СУМКА!'; ev.bubbleT = 150;
+      showHint(COARSE ? 'Догони вора: УДАР или ПАУТИНА — и он пойман' : 'Догони вора: удар (J) или паутина (K) — и он пойман', 360);
+    },
     tick(ev) {
       const t = ev.th;
-      if (t.caught) { if (evNear(ev) && pressed.act) { completeEvent(ev, 'Моя сумка! Спасибо, паучок!'); } return; }
-      t.anim += .3; t.face = 1;
-      t.vx = dist(t.x, t.y, P.x, P.y) < 700 ? 4.4 : 2;
-      if (t.onGround && (standAt(t.x + t.w + 8, t.y + t.h + 3) == null || solidAt(t.x + t.w + 10, t.y + 30))) t.vy = -12;
+      if (t.caught) {
+        if (evNear(ev) && pressed.act) completeEvent(ev, 'Моя сумка! Спасибо, паучок!');
+        t.vx *= .8; t.vy += GRAV; moveBody(t);
+        return;
+      }
+      t.t++; t.anim += .3;
+      // tires out over time, so even a slow chase ends
+      const spd = t.t > 60 * 20 ? 2.4 : dist(t.x, t.y, P.x, P.y) < 500 ? 4.2 : 2.4;
+      t.vx = t.dir * spd; t.face = t.dir;
+      const ahead = t.dir > 0 ? t.x + t.w + 10 : t.x - 10;
+      if (t.onGround && (standAt(ahead, t.y + t.h + 3) == null || solidAt(ahead, t.y + 30))) t.vy = -12;
       t.vy += GRAV; moveBody(t);
-      if (t.x > ev.maxX) { t.x = ev.maxX; t.vx = 0; }
+      // blocked by a wall he can't jump over, or reached the end of the street: double back
+      if (Math.abs(t.x - t.lastX) < .5) t.stuck++; else t.stuck = 0;
+      t.lastX = t.x;
+      if (t.stuck > 20 || (t.dir > 0 && t.x > ev.maxX) || (t.dir < 0 && t.x < ev.minX)) { t.dir = -t.dir; t.stuck = 0; t.x = clamp(t.x, ev.minX, ev.maxX); if (t.onGround) t.vy = -7; }
+      // a web ball sticks him to the spot
+      for (const w of webs) if (w.kind === 'ball' && w.life > 0 && overlap({ x: w.x - 6, y: w.y - 6, w: 12, h: 12 }, t)) { w.life = 0; EVENT_TYPES.thief.catch(ev, 'ОПУТАН!'); return; }
+      // dive or dodge-tackle straight into him also works
+      if ((P.st === 'dodge' || (P.atk && P.atk.k === 'dive')) && overlap(P, t)) EVENT_TYPES.thief.catch(ev, 'ПОЙМАН!');
     },
-    onHit(ev) { },
+    wantsAct(ev) { return ev.th && ev.th.caught && evNear(ev); },
+    onHit(ev, box) { if (ev.th && !ev.th.caught && overlap(box, ev.th)) EVENT_TYPES.thief.catch(ev, 'ПОЙМАН!'); },
+    catch(ev, word) {
+      const t = ev.th; if (t.caught) return;
+      t.caught = true; t.vx = P.face * 3; t.vy = -4;
+      pop(t.x + 13, t.y - 10, word, '#fff', 26); burst(t.x + 13, t.y + 30, '#fff', 12, 4); SFX.web(); hitstop = 4;
+      ev.bubble = 'Моя сумка у него! Паучок, неси её сюда!'; ev.bubbleT = 200;
+      showHint(COARSE ? 'Вор пойман! Верни сумку даме — подойди и нажми УДАР' : 'Вор пойман! Верни сумку даме — подойди и нажми E', 360);
+    },
     draw(ev) {
       if (ev.st !== 'active' || !ev.th) { drawPerson(ev.x, ev.y, -1, LOOKS.lady, ev.st === 'done' ? POSES.thumbs() : POSES.wave(frame)); return; }
       drawPerson(ev.x, ev.y, -1, LOOKS.lady, POSES.talk(frame));
       const t = ev.th;
       drawPerson(t.x + 13, t.y + t.h, t.face, LOOKS.thief, t.caught ? POSES.lie() : POSES.run(t.anim));
-      if (t.caught) { ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(t.x - 10, t.y + 50, 46, 14); promptAt(ev.x, ev.y - 120, 'ВЕРНУТЬ СУМКУ'); }
-      else { orrect(t.x + 18, t.y + 30, 12, 10, 3, '#8a2a4a', 1.6); }
+      if (t.caught) {
+        // web cocoon over the thief, bag now with Spidey
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.beginPath();
+        for (let i = 0; i < 6; i++) { ctx.moveTo(t.x - 16 + i * 10, t.y + t.h - 22); ctx.lineTo(t.x - 10 + i * 10, t.y + t.h); }
+        ctx.moveTo(t.x - 20, t.y + t.h - 12); ctx.lineTo(t.x + 46, t.y + t.h - 10); ctx.stroke();
+        orrect(P.x + P.w / 2 - P.face * 14 - 6, P.y + 36, 12, 10, 3, '#8a2a4a', 1.6);
+        if (evNear(ev)) promptAt(ev.x, ev.y - 120, 'ВЕРНУТЬ СУМКУ');
+      } else orrect(t.x + 13 + t.face * 5 - 6, t.y + 30, 12, 10, 3, '#8a2a4a', 1.6);
     },
   },
   // falling person: catch before they hit the ground
@@ -1213,6 +1258,7 @@ const EVENT_TYPES = {
   },
   // grab the cat from a high spot, bring it to the girl
   cat: {
+    wantsAct(ev) { return ev.phase === 'carry' && evNear(ev, 60); },
     start(ev) { ev.bubble = 'Мурзик залез на антенну и не может слезть!'; ev.bubbleT = 180; ev.phase = 'climb'; },
     tick(ev) {
       if (ev.phase === 'climb') {

@@ -52,6 +52,21 @@
   kbd { font: 600 12px/1 Rubik, system-ui, sans-serif; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 5px; padding: 3px 6px; }
   .note { color: var(--muted); font-size: 13px; margin: 0; max-width: 72ch; }
   @media (pointer: coarse) { .pad { display: flex; } .keys { display: none; } }
+  /* phone held sideways: the game fills the screen height and the buttons float over its corners */
+  @media (pointer: coarse) and (orientation: landscape) {
+    .wrap { max-width: none; height: 100%; padding-inline: 8px; padding-block: 4px; gap: 4px; box-sizing: border-box; }
+    header { flex-wrap: nowrap; }
+    h1 { font-size: 13px; }
+    .tool { padding: 5px 9px; font-size: 11px; }
+    .stage { width: auto; height: calc(100dvh - 44px); max-height: calc(100vh - 44px); margin-inline: auto; box-shadow: none; }
+    .pad { position: fixed; left: 0; right: 0; bottom: 0; padding: 0 calc(10px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(10px + env(safe-area-inset-left, 0px)); pointer-events: none; align-items: flex-end; }
+    .pad .btn { pointer-events: auto; opacity: .72; }
+    .dpad { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 44px); }
+    .btn.arrow { width: 46px; }
+    .acts { grid-template-columns: repeat(3, 68px); }
+    .btn { min-width: 0; height: 42px; font-size: 9.5px; letter-spacing: 0; padding-inline: 2px; }
+    .note { display: none; }
+  }
   @media (max-width: 420px) { .btn { min-width: 50px; height: 42px; font-size: 10px; } .dpad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 42px); } .btn.arrow { width: 44px; } }
 </style>
 </head>
