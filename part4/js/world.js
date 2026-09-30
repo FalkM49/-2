@@ -6,8 +6,8 @@ const PALETTES = {
   dusk: { sky: ['#2a1f5a', '#c8607a', '#ffb070'], far: '#6a3a6a', mid: '#4a2a5a', win: '#ffd88a', winOff: '#5a3a6a', bldg: ['#5a3a6a', '#4a3060', '#6a4070', '#523664'], ledge: '#8a5a8a', street: '#2a2030', walk: '#5a4a62' },
 };
 function makeSkyline(seed, pal, minH, maxH, base, width, layer) {
-  const c = document.createElement('canvas'); c.width = width; c.height = 640;
-  const g = c.getContext('2d'); const r = rng(seed);
+  const c = document.createElement('canvas'); c.width = Math.round(width * DPR); c.height = Math.round(640 * DPR); c.lw = width;
+  const g = c.getContext('2d'); g.scale(DPR, DPR); const r = rng(seed);
   let x = 0;
   g.lineJoin = 'round';
   while (x < width) {
@@ -23,42 +23,77 @@ function makeSkyline(seed, pal, minH, maxH, base, width, layer) {
   }
   return c;
 }
-const SKY = {};
-for (const k of ['night', 'day', 'dusk']) {
-  SKY[k] = { far: makeSkyline(11 + k.length, PALETTES[k], 120, 320, 560, 1800, 'far'), mid: makeSkyline(29 + k.length, PALETTES[k], 80, 260, 620, 1800, 'mid') };
+// skyline layers are built lazily per theme at the current resolution, so they blit 1:1
+const SKY_LAYERS = {};
+function skyLayers(k) {
+  const key = k + '@' + DPR;
+  if (!SKY_LAYERS[key]) {
+    for (const old in SKY_LAYERS) if (old.startsWith(k + '@')) delete SKY_LAYERS[old];
+    SKY_LAYERS[key] = { far: makeSkyline(11 + k.length, PALETTES[k], 120, 320, 560, 1800, 'far'), mid: makeSkyline(29 + k.length, PALETTES[k], 80, 260, 620, 1800, 'mid') };
+  }
+  return SKY_LAYERS[key];
 }
 const STARS = Array.from({ length: 110 }, (_, i) => ({ x: hash(i, 1) * W, y: hash(i, 2) * 320, r: hash(i, 3) * 1.5 + .3, p: hash(i, 4) * 6 }));
 const CLOUDS = Array.from({ length: 8 }, (_, i) => ({ x: hash(i, 9) * 1800, y: 40 + hash(i, 8) * 160, s: .6 + hash(i, 7) * .8 }));
 function tileX(img, off, dy) {
-  const lw = img.width; let x = -(((off % lw) + lw) % lw);
-  for (; x < W; x += lw) ctx.drawImage(img, x, dy);
+  const lw = img.lw || img.width; let x = -(((off % lw) + lw) % lw);
+  // snap to device pixels so the blit stays unfiltered
+  dy = Math.round(dy * DPR) / DPR;
+  for (; x < W; x += lw) { const sx = Math.round(x * DPR) / DPR; ctx.drawImage(img, sx, dy, lw, 640); }
 }
 function drawCloud(x, y, s) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   ofill(() => { ctx.arc(0, 0, 20, Math.PI, 0); ctx.arc(28, -6, 26, Math.PI, 0); ctx.arc(60, 0, 18, Math.PI, 0); ctx.lineTo(78, 8); ctx.lineTo(-20, 8); ctx.closePath(); }, '#ffffff', 2);
   ctx.restore();
 }
-function drawSky(theme, cx, cy, lvlH) {
+// static sky (gradient + halftone + stars + moon) is baked once per theme and resolution
+const SKY_CACHE = {};
+function skyBase(theme) {
+  const key = theme + '@' + DPR;
+  if (SKY_CACHE[key]) return SKY_CACHE[key];
+  for (const k in SKY_CACHE) if (!k.endsWith('@' + DPR)) delete SKY_CACHE[k];
   const pal = PALETTES[theme] || PALETTES.night;
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, pal.sky[0]); g.addColorStop(.55, pal.sky[1]); g.addColorStop(1, pal.sky[2]);
-  ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
-  ctx.fillStyle = theme === 'day' ? HT_LIGHT : HT_SOFT; ctx.fillRect(0, 0, W, H);
+  const c = document.createElement('canvas'); c.width = Math.round(W * DPR); c.height = Math.round(H * DPR);
+  const main = ctx; const g2 = c.getContext('2d'); g2.setTransform(DPR, 0, 0, DPR, 0, 0); g2.lineCap = g2.lineJoin = 'round';
+  ctx = g2;
+  try {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, pal.sky[0]); g.addColorStop(.55, pal.sky[1]); g.addColorStop(1, pal.sky[2]);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = theme === 'day' ? HT_LIGHT : HT_SOFT; ctx.fillRect(0, 0, W, H);
+    if (theme !== 'day') {
+      ctx.fillStyle = 'rgba(255,255,255,.55)'; for (const s of STARS) ctx.fillRect(s.x, s.y, s.r, s.r);
+      const mx = 770, my = 110;
+      const mg = ctx.createRadialGradient(mx, my, 30, mx, my, 190);
+      mg.addColorStop(0, 'rgba(255,240,190,.35)'); mg.addColorStop(1, 'rgba(255,240,190,0)');
+      ctx.fillStyle = mg; ctx.fillRect(mx - 190, my - 190, 380, 380);
+      ocirc(mx, my, 60, theme === 'dusk' ? '#ffe0b0' : '#f7ecbc', 3);
+      halftone(() => ctx.arc(mx, my, 58, 0, TAU), HT_SOFT);
+    } else ocirc(140, 90, 44, '#fff3a0', 3);
+  } finally { ctx = main; }
+  return (SKY_CACHE[key] = c);
+}
+let CLOUD_IMG = null;
+function cloudSprite() {
+  if (CLOUD_IMG && CLOUD_IMG.dpr === DPR) return CLOUD_IMG;
+  const c = document.createElement('canvas'), k = DPR * 1.4; c.width = Math.ceil(110 * k); c.height = Math.ceil(46 * k);
+  const main = ctx; ctx = c.getContext('2d'); ctx.setTransform(k, 0, 0, k, 24 * k, 34 * k); ctx.lineCap = ctx.lineJoin = 'round';
+  try { drawCloud(0, 0, 1); } finally { ctx = main; }
+  c.dpr = DPR; c.k = k; return (CLOUD_IMG = c);
+}
+function drawSky(theme, cx, cy, lvlH) {
+  ctx.drawImage(skyBase(theme), 0, 0, W, H);
   if (theme !== 'day') {
-    for (const s of STARS) { ctx.globalAlpha = .4 + .4 * Math.sin(frame * .03 + s.p); ctx.fillStyle = '#fff'; ctx.fillRect(s.x, s.y, s.r, s.r); }
+    // a handful of twinkling stars on top of the baked ones
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < STARS.length; i += 5) { const s = STARS[i]; ctx.globalAlpha = .5 + .5 * Math.sin(frame * .03 + s.p); ctx.fillRect(s.x - .5, s.y - .5, s.r + 1, s.r + 1); }
     ctx.globalAlpha = 1;
-    const mx = 770 - cx * .02, my = 110 + (cy || 0) * .02;
-    const mg = ctx.createRadialGradient(mx, my, 30, mx, my, 190);
-    mg.addColorStop(0, 'rgba(255,240,190,.35)'); mg.addColorStop(1, 'rgba(255,240,190,0)');
-    ctx.fillStyle = mg; ctx.fillRect(mx - 190, my - 190, 380, 380);
-    ocirc(mx, my, 60, theme === 'dusk' ? '#ffe0b0' : '#f7ecbc', 3);
-    halftone(() => ctx.arc(mx, my, 58, 0, TAU), HT_SOFT);
   } else {
-    ocirc(140 - cx * .01, 90, 44, '#fff3a0', 3);
-    for (const c of CLOUDS) drawCloud(((c.x - cx * .05) % 1900 + 1900) % 1900 - 100, c.y, c.s);
+    const cs = cloudSprite();
+    for (const c of CLOUDS) { const x = ((c.x - cx * .05) % 1900 + 1900) % 1900 - 100; ctx.drawImage(cs, x - 24 * c.s, c.y - 34 * c.s, cs.width / cs.k * c.s, cs.height / cs.k * c.s); }
   }
   const lift = lvlH ? Math.max(0, (lvlH - H) - cy) : 0;
-  const L = SKY[theme] || SKY.night;
+  const L = skyLayers(SKY_LAYERS && PALETTES[theme] ? theme : 'night');
   tileX(L.far, cx * .15, -60 + lift * .12);
   tileX(L.mid, cx * .35, -40 + lift * .3);
 }
@@ -80,7 +115,7 @@ function drawRiverBg(cx, cy, lvlH, fire) {
   ctx.fillStyle = g; ctx.fillRect(0, wy, W, H - wy + 20);
   ctx.strokeStyle = 'rgba(255,230,160,.25)'; ctx.lineWidth = 2;
   for (let i = 0; i < 16; i++) { const y = wy + 10 + i * 12, x = ((i * 137 - cx * .4 + frame * .3) % (W + 100) + W + 100) % (W + 100) - 50; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 30 + i * 2, y); ctx.stroke(); }
-  if (fire) { const fg = ctx.createRadialGradient(W / 2, H, 50, W / 2, H, 500); fg.addColorStop(0, 'rgba(255,120,40,.35)'); fg.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = fg; ctx.fillRect(0, 0, W, H); }
+  if (fire) glow(W / 2, H, 500, [0, 'rgba(255,120,40,.35)', 1, 'rgba(255,120,40,0)'], .1);
 }
 function drawInteriorBg(cx, cy, style) {
   ctx.fillStyle = style === 'oscorp' ? '#141a24' : '#1c1620'; ctx.fillRect(0, 0, W, H);
@@ -99,24 +134,29 @@ function bldgColor(b, pal) { return pal.bldg[Math.floor(hash(b.id, 17) * pal.bld
 function drawBuilding(b, pal, L) {
   const col = bldgColor(b, pal);
   const top = b.y, bot = Math.min(b.y + b.h, L.h + 40);
-  ctx.fillStyle = col; ctx.fillRect(b.x, top, b.w, bot - top);
-  // side shade
-  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(b.x + b.w - 12, top, 12, bot - top);
-  ctx.save(); ctx.beginPath(); ctx.rect(b.x, top, b.w, bot - top); ctx.clip();
-  ctx.fillStyle = HT_SOFT; ctx.fillRect(b.x, top, b.w, bot - top);
-  // windows
+  // only the on-screen part of the facade is filled
+  const vy0 = Math.max(top, camY - 20), vy1 = Math.min(bot, camY + H + 20);
+  const vx0 = Math.max(b.x, camX - 20), vx1 = Math.min(b.x + b.w, camX + W + 20);
+  if (vy1 > vy0 && vx1 > vx0) {
+    ctx.fillStyle = col; ctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0);
+    ctx.fillStyle = HT_SOFT; ctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0);
+    const sx = Math.max(vx0, b.x + b.w - 12);
+    if (sx < vx1) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(sx, vy0, vx1 - sx, vy1 - vy0); }
+  }
+  // windows: batched into one path per colour
   const x0 = Math.max(b.x + 14, camX - 40), x1 = Math.min(b.x + b.w - 18, camX + W + 40);
   const y0 = Math.max(top + 30, camY - 40), y1 = Math.min(bot, camY + H + 40);
   const rs = Math.floor((y0 - top - 30) / 38), cs = Math.floor((x0 - b.x - 14) / 30);
+  const day = L.theme === 'day', thr = day ? .7 : .3;
+  const lit = new Path2D(), off = new Path2D(), glint = day ? new Path2D() : null;
   for (let r = Math.max(0, rs), yy = top + 30 + Math.max(0, rs) * 38; yy < y1; r++, yy += 38) {
     for (let c = Math.max(0, cs), xx = b.x + 14 + Math.max(0, cs) * 30; xx < x1; c++, xx += 30) {
-      const lit = hash(b.id * 131 + r, c) < (L.theme === 'day' ? .7 : .3);
-      ctx.fillStyle = lit ? pal.win : pal.winOff; ctx.fillRect(xx, yy, 15, 20);
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(xx, yy, 15, 20);
-      if (lit && L.theme === 'day') { ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillRect(xx + 2, yy + 2, 3, 12); }
+      if (hash(b.id * 131 + r, c) < thr) { lit.rect(xx, yy, 15, 20); if (glint) glint.rect(xx + 2, yy + 2, 3, 12); } else off.rect(xx, yy, 15, 20);
     }
   }
-  ctx.restore();
+  ctx.fillStyle = pal.win; ctx.fill(lit); ctx.fillStyle = pal.winOff; ctx.fill(off);
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.stroke(lit); ctx.stroke(off);
+  if (glint) { ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill(glint); }
   ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.strokeRect(b.x, top, b.w, bot - top + 4);
   // cornice
   orrect(b.x - 5, top - 4, b.w + 10, 12, 1, pal.ledge, 2.5);
@@ -269,7 +309,7 @@ function paintHome(night) {
   orrect(1250, 410, 180, 50, 6, '#4a6aa0', 2.4); orrect(1395, 396, 34, 20, 6, '#eef', 2);
   winView(1300, 200, 100, 110, night ? 'night' : 'day');
   floorFill(-60, 1480, '#7a5a3c');
-  if (night) { ctx.fillStyle = 'rgba(10,10,40,.45)'; ctx.fillRect(-60, 0, 1560, 640); const g = ctx.createRadialGradient(1068, 360, 10, 1068, 360, 220); g.addColorStop(0, 'rgba(255,220,150,.3)'); g.addColorStop(1, 'rgba(255,220,150,0)'); ctx.fillStyle = g; ctx.fillRect(848, 140, 440, 440); }
+  if (night) { ctx.fillStyle = 'rgba(10,10,40,.45)'; ctx.fillRect(-60, 0, 1560, 640); glow(1068, 360, 220, [0, 'rgba(255,220,150,.3)', 1, 'rgba(255,220,150,0)'], .05); }
 }
 function paintPenthouse(theme) {
   wallFill(-60, 1560, '#2a2230', 'rgba(255,255,255,.02)');

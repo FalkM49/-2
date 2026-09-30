@@ -51,8 +51,7 @@ const LEVELS = {
       ctx.fillStyle = '#1a1420'; ctx.fillRect(930, G - 358, 1170, 358);
       ctx.fillStyle = HT_SOFT; ctx.fillRect(930, G - 358, 1170, 358);
       const rx = 1850, ry = G - 200, pulse = Math.sin(frame * .3) * 8;
-      const g = ctx.createRadialGradient(rx, ry, 10, rx, ry, 180 + pulse); g.addColorStop(0, 'rgba(255,240,180,.95)'); g.addColorStop(.3, 'rgba(255,150,40,.6)'); g.addColorStop(1, 'rgba(255,90,30,0)');
-      ctx.fillStyle = g; circle(rx, ry, 180 + pulse);
+      glow(rx, ry, 180 + pulse, [0, 'rgba(255,240,180,.95)', .3, 'rgba(255,150,40,.6)', 1, 'rgba(255,90,30,0)'], .06);
       ctx.strokeStyle = INK; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(rx, ry, 70, 0, TAU); ctx.stroke();
       ctx.strokeStyle = '#8a90a0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(rx, ry, 70, .4, 2.2); ctx.stroke();
       for (let i = 0; i < 18; i++) { const x = 950 + i * 64, h = 20 + Math.abs(Math.sin(frame * .2 + i)) * 26; ofill(() => { ctx.moveTo(x - 14, G); ctx.quadraticCurveTo(x - 10, G - h * .6, x, G - h); ctx.quadraticCurveTo(x + 10, G - h * .6, x + 14, G); ctx.closePath(); }, i % 2 ? '#ff9a2e' : '#ffd84a', 1.8); }
@@ -314,11 +313,10 @@ function drawBankFacade(x, G) {
   ctx.fillStyle = INK; ctx.font = `20px ${F_DISP}`; ctx.textAlign = 'center'; ctx.fillText('БАНК', x + 380, G - 355); ctx.textAlign = 'left';
   ctx.restore();
 }
-function drawReactorFar(x, y) { const g = ctx.createRadialGradient(x, y, 10, x, y, 160); g.addColorStop(0, 'rgba(255,230,160,.85)'); g.addColorStop(.4, 'rgba(255,140,40,.4)'); g.addColorStop(1, 'rgba(255,90,30,0)'); ctx.fillStyle = g; circle(x, y, 160); ocirc(x, y, 50, '#ffe0a0', 3); }
+function drawReactorFar(x, y) { glow(x, y, 160, [0, 'rgba(255,230,160,.85)', .4, 'rgba(255,140,40,.4)', 1, 'rgba(255,90,30,0)'], .06); ocirc(x, y, 50, '#ffe0a0', 3); }
 function drawReactorBig(x, y, ch) {
   const r = 110 + Math.sin(frame * .2) * 4 * ch;
-  const g = ctx.createRadialGradient(x, y, 10, x, y, r * 2.4); g.addColorStop(0, 'rgba(255,245,200,.95)'); g.addColorStop(.35, `rgba(255,150,40,${.3 + ch * .4})`); g.addColorStop(1, 'rgba(255,90,30,0)');
-  ctx.fillStyle = g; circle(x, y, r * 2.4);
+  glow(x, y, r * 2.4, [0, 'rgba(255,245,200,.95)', .35, `rgba(255,150,40,${(.3 + Math.round(ch * 4) / 10).toFixed(1)})`, 1, 'rgba(255,90,30,0)'], .04);
   ctx.strokeStyle = INK; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
   ctx.strokeStyle = '#8a90a0'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(x, y, r * 1.3, r * .35, frame * .01, 0, TAU); ctx.stroke();
   for (let i = 0; i < 4; i++) olin([x - 200 + i * 130, y + 330, x - 120 + i * 80, y + r * .8], 5, '#4a4e58', 3);
@@ -615,7 +613,9 @@ function renderCivil() {
   if (SCN.theme === 'terrace') drawSky('night', camX * z, 0, 0);
   ctx.save();
   SCN.fy = lerp(SCN.fy || 505, state === 'dialog' || state === 'mini' ? 372 : 505, .12);
-  ctx.translate(0, SCN.fy); ctx.scale(z, z); ctx.translate(-camX, -FLOOR);
+  // whole-pixel offsets keep pattern fills and sprites on the fast unfiltered path
+  ctx.translate(Math.round(-camX * z), Math.round(SCN.fy - FLOOR * z)); ctx.scale(z, z);
+  useHalftoneZoom(z);
   paintCivil(SCN);
   const near = P.skin !== 'none' && state === 'play' ? civilNear() : null;
   for (const it of SCN.items) {
@@ -640,6 +640,7 @@ function renderCivil() {
   else if (P.skin === 'hero') drawHero(P.x + 12, P.y + P.h, P.face, Math.abs(P.vx) > .3 ? POSES.run(P.anim) : POSES.idle(frame), SAVE.suit);
   if (SCN.extra) SCN.extra();
   for (const q of pops) drawPop(q);
+  useHalftoneZoom(1);
   ctx.restore();
 }
 

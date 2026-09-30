@@ -82,8 +82,20 @@ SAVE = loadSave() || SAVE;
   if (m) { const n = +m[1]; if (n < CHAPTERS.length) { if (n >= 1 && SAVE.suits.length <= 1) { SAVE.suits = ['street']; if (n >= 4) SAVE.suits.push('upgraded'); SAVE.suit = 'street'; } startChapter(n); } }
 }
 let acc = 0, last = performance.now();
+const perf = { sum: 0, n: 0, slow: 0 };
+function watchPerf(dt) {
+  // average frame time over ~1.5 s; two slow windows in a row step the resolution down
+  perf.sum += dt; perf.n++;
+  if (perf.n < 90) return;
+  const avg = perf.sum / perf.n; perf.sum = 0; perf.n = 0;
+  if (document.hidden) return;
+  if (avg > 21) perf.slow++; else perf.slow = 0;
+  if (perf.slow >= 2 && DPR_CAP > .75) { DPR_CAP = DPR > 1.5 ? 1.5 : DPR > 1 ? 1 : .75; perf.slow = 0; fit(); }
+}
 function loop(now) {
-  acc += Math.min(100, now - last); last = now;
+  const dt = now - last;
+  watchPerf(dt);
+  acc += Math.min(100, dt); last = now;
   let steps = 0;
   while (acc >= 1000 / 60 && steps < 4) {
     tickInput(); update(); clearInput();

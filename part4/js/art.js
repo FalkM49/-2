@@ -23,16 +23,39 @@ function shade(col, k) {
   r = clamp(Math.round(r * k), 0, 255); g = clamp(Math.round(g * k), 0, 255); b = clamp(Math.round(b * k), 0, 255);
   return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
 }
-function makeDots(col, r, s) {
-  const c = document.createElement('canvas'); c.width = c.height = s;
-  const g = c.getContext('2d'); g.fillStyle = col; g.beginPath(); g.arc(s / 2, s / 2, r, 0, TAU); g.fill();
-  return ctx.createPattern(c, 'repeat');
+// halftone tiles are drawn at 2x and scaled back by the pattern matrix, so at DPR 2 they tile 1:1
+function makeDots(col, r, s, z = 1) {
+  const k = 2, c = document.createElement('canvas'); c.width = c.height = s * k;
+  const g = c.getContext('2d'); g.fillStyle = col; g.beginPath(); g.arc(s * k / 2, s * k / 2, r * k, 0, TAU); g.fill();
+  const p = ctx.createPattern(c, 'repeat');
+  if (p.setTransform && typeof DOMMatrix === 'function') p.setTransform(new DOMMatrix().scale(1 / (k * z)));
+  return p;
 }
-const HT_DARK = makeDots('rgba(10,6,20,.30)', 1.25, 5);
-const HT_SOFT = makeDots('rgba(10,6,20,.16)', 1.6, 7);
-const HT_LIGHT = makeDots('rgba(255,255,255,.22)', 1.3, 6);
+const HT_BASE = [makeDots('rgba(10,6,20,.30)', 1.25, 5), makeDots('rgba(10,6,20,.16)', 1.6, 7), makeDots('rgba(255,255,255,.22)', 1.3, 6)];
+let [HT_DARK, HT_SOFT, HT_LIGHT] = HT_BASE;
+// scenes drawn under a zoom get patterns pre-shrunk by that zoom, keeping the 1:1 tiling fast path
+const HT_ZOOMED = {};
+function useHalftoneZoom(z) {
+  if (z === 1) { [HT_DARK, HT_SOFT, HT_LIGHT] = HT_BASE; return; }
+  const set = HT_ZOOMED[z] || (HT_ZOOMED[z] = [makeDots('rgba(10,6,20,.30)', 1.25, 5, z), makeDots('rgba(10,6,20,.16)', 1.6, 7, z), makeDots('rgba(255,255,255,.22)', 1.3, 6, z)]);
+  [HT_DARK, HT_SOFT, HT_LIGHT] = set;
+}
 function halftone(fn, pat = HT_DARK) {
-  ctx.save(); ctx.beginPath(); fn(); ctx.clip(); ctx.fillStyle = pat; ctx.fillRect(-2000, -2000, 6000, 6000); ctx.restore();
+  ctx.beginPath(); fn(); ctx.fillStyle = pat; ctx.fill();
+}
+// soft radial glows are pre-rendered once per colour set and stretched, instead of a new gradient every frame
+const GLOWS = {};
+function glow(x, y, r, stops, inner = 0) {
+  const key = inner + '|' + stops.join('|');
+  let c = GLOWS[key];
+  if (!c) {
+    c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, inner * 128, 128, 128, 128);
+    for (let i = 0; i < stops.length; i += 2) gr.addColorStop(stops[i], stops[i + 1]);
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    GLOWS[key] = c;
+  }
+  ctx.drawImage(c, x - r, y - r, r * 2, r * 2);
 }
 // quad strip around a polyline with per-point half widths, returns polygon points
 function strip(pts, ws) {

@@ -1,10 +1,13 @@
 'use strict';
 // ============================================================ canvas
 const cv = document.getElementById('game');
-const ctx = cv.getContext('2d');
+const MAIN_CTX = cv.getContext('2d', { alpha: false });
+let ctx = MAIN_CTX;
 const W = 960, H = 540;
 let DPR = 1;
-function fit() { DPR = Math.min(window.devicePixelRatio || 1, 2); cv.width = W * DPR; cv.height = H * DPR; }
+// render resolution: device pixel ratio capped at 2 and lowered automatically when frames run slow
+let DPR_CAP = 2;
+function fit() { const d = Math.max(.75, Math.min(window.devicePixelRatio || 1, DPR_CAP)); if (d === DPR && cv.width === Math.round(W * d)) return; DPR = d; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 fit();
 addEventListener('resize', fit);
 
